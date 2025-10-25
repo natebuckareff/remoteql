@@ -1,4 +1,4 @@
-import assert from "node:assert";
+import assert from 'node:assert';
 
 interface Call<Input, Output> {
   input: Input;
@@ -26,17 +26,17 @@ export class BatchScheduler<Input, Output = Input> {
 
     try {
       // wait until after the current tick, allowing all awaits to batch
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise(resolve => setTimeout(resolve, 0));
 
       // capture calls made in the current batch
       calls = this.calls;
       this.calls = [];
 
-      const inputs = calls.map((call) => call!.input);
+      const inputs = calls.map(call => call!.input);
       const results = await this.request(inputs);
 
       if (results.length !== calls.length) {
-        throw Error("request returned more results than inputs");
+        throw Error('request returned more results than inputs');
       }
 
       for (let i = 0; i < results.length; ++i) {
@@ -51,7 +51,7 @@ export class BatchScheduler<Input, Output = Input> {
         }
       }
     } catch (error) {
-      assert(calls !== undefined, "calls always set before any error");
+      assert(calls !== undefined, 'calls always set before any error');
 
       // fanout batch error to all calls
       for (const call of calls!) {

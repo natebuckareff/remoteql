@@ -1,14 +1,14 @@
-import { Capture, getCapture, ValueCapture } from "./proxy";
-import { Rpc } from "./rpc-type";
-import { serialize } from "./serialize";
+import { type Capture, getCapture, type ValueCapture } from './proxy.js';
+import type { Rpc } from './rpc-type.js';
+import { serialize } from './serialize.js';
 
 export type Frame = Record<number, Operation | Block>;
 
 export type Operation =
-  | ["let", unknown]
-  | ["get", ...(number | string)[]]
-  | ["call", (number | string)[], ...number[]]
-  | ["map", (number | string)[], number];
+  | ['let', unknown]
+  | ['get', ...(number | string)[]]
+  | ['call', (number | string)[], ...number[]]
+  | ['map', (number | string)[], number];
 
 export interface Block {
   params: number[];
@@ -64,7 +64,7 @@ export class Plan {
   private _getIdOf(cap: Capture): number {
     const id = this.ids.get(cap);
     if (id === undefined) {
-      throw Error("capture id not found");
+      throw Error('capture id not found');
     }
     return id;
   }
@@ -73,7 +73,7 @@ export class Plan {
     for (const value of values) {
       const cap = getCapture(value);
       if (cap === undefined) {
-        throw Error("invalid rpc promise");
+        throw Error('invalid rpc promise');
       }
       this._walkCapture(cap, this.frame);
       const outputId = this._getIdOf(cap);
@@ -88,7 +88,7 @@ export class Plan {
       if (value instanceof Value) {
         const id = this._getNextId();
         const ser = serialize(value.get());
-        frame[id] = ["let", ser];
+        frame[id] = ['let', ser];
         return id;
       } else {
         return value;
@@ -96,20 +96,20 @@ export class Plan {
     };
 
     switch (cap.kind) {
-      case "var":
+      case 'var':
         return this._getIdOrNext(cap);
 
-      case "get": {
+      case 'get': {
         const [targetCap, path] = compressGetPath(cap);
         const targetId = rec(targetCap, frame);
         const id = this._getIdOrNext(cap);
         const fullPath = [targetId, ...path];
-        const op: Operation = ["get", ...fullPath];
+        const op: Operation = ['get', ...fullPath];
         frame[id] = op;
         return id;
       }
 
-      case "apply": {
+      case 'apply': {
         const [target, path] = compressGetPath(cap.parent);
         const parentId = rec(target, frame);
         const argIds: number[] = [];
@@ -119,12 +119,12 @@ export class Plan {
         }
         const id = this._getIdOrNext(cap);
         const fullPath = [parentId, ...path];
-        const op: Operation = ["call", fullPath, ...argIds];
+        const op: Operation = ['call', fullPath, ...argIds];
         frame[id] = op;
         return id;
       }
 
-      case "map": {
+      case 'map': {
         const block: Block = {
           params: [],
           frame: {},
@@ -146,12 +146,12 @@ export class Plan {
         frame[blockId] = block;
 
         const mapId = this._getIdOrNext(cap);
-        const callOp: Operation = ["call", fullPath, blockId];
+        const callOp: Operation = ['call', fullPath, blockId];
         frame[mapId] = callOp;
         return mapId;
       }
 
-      case "value":
+      case 'value':
         return this._walkValue(cap, frame);
     }
   }
@@ -166,10 +166,10 @@ export class Plan {
     };
 
     switch (cap.type) {
-      case "primitive":
+      case 'primitive':
         return new Value(cap.value);
 
-      case "array": {
+      case 'array': {
         const output: any[] = [];
         for (const element of cap.value) {
           output.push(unwrap(this._walkCapture(element, frame)));
@@ -177,7 +177,7 @@ export class Plan {
         return new Value(output);
       }
 
-      case "object": {
+      case 'object': {
         const output: Record<string, any> = {};
         for (const [prop, field] of Object.entries(cap.value)) {
           output[prop] = unwrap(this._walkCapture(field, frame));
@@ -185,8 +185,8 @@ export class Plan {
         return new Value(output);
       }
 
-      case "function":
-        throw Error("invalid rpc value");
+      case 'function':
+        throw Error('invalid rpc value');
     }
   }
 }
@@ -194,7 +194,7 @@ export class Plan {
 function compressGetPath(cap: Capture): [Capture, (number | string)[]] {
   const path: (number | string)[] = [];
   while (true) {
-    if (cap.kind === "get") {
+    if (cap.kind === 'get') {
       path.unshift(cap.property);
       cap = cap.parent;
     } else {

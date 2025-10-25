@@ -1,14 +1,14 @@
-import { createTracker } from "./proxy";
-import { Plan } from "./plan";
-import { RpcImpl, Rpc } from "./rpc-type";
+import { Plan } from './plan.js';
+import { createTracker } from './proxy.js';
+import { type Rpc, RpcImpl } from './rpc-type.js';
 
 class Basic extends RpcImpl {
   async getUsers(): Promise<User[]> {
-    throw Error("todo");
+    throw Error('todo');
   }
 
   async getUserById(id: number): Promise<User> {
-    throw Error("todo");
+    throw Error('todo');
   }
 }
 
@@ -18,14 +18,14 @@ interface User {
   friends: number[];
 }
 
-const rpc = createTracker<Rpc<Basic>>({ kind: "var" });
+const rpc = createTracker<Rpc<Basic>>({ kind: 'var' });
 const me = rpc.getUserById(42);
 const users = rpc.getUsers();
 const firstUser = users[0];
-const usersWithFriends = users.map((user) => ({
+const usersWithFriends = users.map(user => ({
   info: {
     id: user.id,
-    friends: user.friends.map((id) => rpc.getUserById(id)),
+    friends: user.friends.map(id => rpc.getUserById(id)),
   },
 }));
 

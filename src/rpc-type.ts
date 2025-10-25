@@ -37,18 +37,18 @@ export type Rpc<T> = RpcPromiseMarker<T> &
   ([T] extends [PlainPrimitive]
     ? ConstrainPrimitive<T>
     : T extends (...args: infer Args) => infer ReturnType
-    ? RpcFunction<Args, ReturnType>
-    : T extends readonly [...any]
-    ? number extends T["length"]
-      ? RpcArray<T[number]>
-      : RpcTuple<T>
-    : T extends RpcImpl
-    ? RpcClient<T>
-    : T extends object
-    ? RpcObject<T>
-    : void extends T
-    ? void
-    : never);
+      ? RpcFunction<Args, ReturnType>
+      : T extends readonly [...any]
+        ? number extends T['length']
+          ? RpcArray<T[number]>
+          : RpcTuple<T>
+        : T extends RpcImpl
+          ? RpcClient<T>
+          : T extends object
+            ? RpcObject<T>
+            : void extends T
+              ? void
+              : never);
 
 export type RpcFunction<Args extends any[], ReturnType> = (
   ...args: RpcParams<Args>
@@ -78,7 +78,7 @@ export type RpcArray<E> = {
 } & {
   at(index: number): Rpc<E>;
   map<const U>(
-    callback: (value: Rpc<E>, index: Rpc<number>) => U
+    callback: (value: Rpc<E>, index: Rpc<number>) => U,
   ): U extends Rpc<infer E> ? Rpc<E[]> : Rpc<U[]>;
 };
 
