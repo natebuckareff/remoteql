@@ -1,4 +1,5 @@
 import assert from 'node:assert';
+import { get } from './util.js';
 
 interface Call<Input, Output> {
   input: Input;
@@ -32,6 +33,7 @@ export class BatchScheduler<Input, Output = Input> {
       calls = this.calls;
       this.calls = [];
 
+      // biome-ignore lint/style/noNonNullAssertion: calls always set before this
       const inputs = calls.map(call => call!.input);
       const results = await this.request(inputs);
 
@@ -40,8 +42,11 @@ export class BatchScheduler<Input, Output = Input> {
       }
 
       for (let i = 0; i < results.length; ++i) {
-        const result = results[i]!;
-        const current = calls[i]!;
+        const result = get(results, i);
+
+        // biome-ignore lint/style/noNonNullAssertion: always set to nul _after_
+        const current = get(calls, i)!;
+
         calls[i] = null;
 
         try {
@@ -54,7 +59,7 @@ export class BatchScheduler<Input, Output = Input> {
       assert(calls !== undefined, 'calls always set before any error');
 
       // fanout batch error to all calls
-      for (const call of calls!) {
+      for (const call of calls) {
         call?.reject(error);
       }
     } finally {

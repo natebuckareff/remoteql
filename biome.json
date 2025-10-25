@@ -17,7 +17,7 @@
     "rules": {
       "recommended": true
     },
-    "includes": ["!src/**/*.test.ts"]
+    "includes": ["src/**/*.ts", "!src/**/*.test.ts"]
   },
   "javascript": {
     "formatter": {
