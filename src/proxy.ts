@@ -1,3 +1,5 @@
+import type { Client } from './client.js';
+
 const nothing = (): void => {};
 const captureSymbol = Symbol('capture');
 
@@ -14,10 +16,19 @@ export type ValueCapture =
   | { kind: 'value'; type: 'object'; value: Record<string, Capture> }
   | { kind: 'value'; type: 'function' };
 
-export type Tracker = (() => void) & { readonly [captureSymbol]: Capture };
+export type Tracker = (() => void) & {
+  readonly [captureSymbol]: Capture;
+  then<Result>(
+    callback: (reason: unknown) => Result | Promise<Result>,
+  ): Promise<Result>;
+};
 
 export function isTracker(value: unknown): value is Tracker {
-  return typeof value === 'function' && value[captureSymbol] !== undefined;
+  return (
+    typeof value === 'function' &&
+    // biome-ignore lint/suspicious/noExplicitAny: key does not actually exist, it's proxied
+    (value as any)[captureSymbol] !== undefined
+  );
 }
 
 export function getCapture(value: Tracker): Capture;
@@ -28,7 +39,11 @@ export function getCapture(value: unknown): Capture | undefined {
   }
 }
 
-export function createTracker<T extends object = Tracker>(source: Capture): T {
+export function createTracker<T extends object>(
+  client: Client,
+  source: Capture,
+): T {
+  // biome-ignore lint/suspicious/noExplicitAny: generic value that can always be called
   return new Proxy<T>(nothing as any, {
     get(_target, p, _receiver) {
       if (p === captureSymbol) {
@@ -39,7 +54,21 @@ export function createTracker<T extends object = Tracker>(source: Capture): T {
         throw Error(`cannot serialize symbols`);
       }
 
-      return createTracker({
+      if (p === 'then') {
+        return (callback: (reason: unknown) => unknown | Promise<unknown>) => {
+          return new Promise((resolve, reject) => {
+            const success = (value: unknown) => {
+              return Promise.resolve()
+                .then(() => callback(value))
+                .then(resolve)
+                .catch(reject);
+            };
+            client.batch.send(source, success, reject);
+          });
+        };
+      }
+
+      return createTracker(client, {
         kind: 'get',
         parent: source,
         property: p,
@@ -53,11 +82,11 @@ export function createTracker<T extends object = Tracker>(source: Capture): T {
           if (argArray.length === 1 && typeof callback === 'function') {
             const args: Tracker[] = [];
             for (let i = 0; i < Math.min(callback.length, 3); ++i) {
-              args.push(createTracker({ kind: 'var' }));
+              args.push(createTracker(client, { kind: 'var' }));
             }
             const result = callback(...args);
 
-            return createTracker({
+            return createTracker(client, {
               kind: 'map',
               parent: source,
               args: args.map(arg => getCapture(arg)),
@@ -67,7 +96,7 @@ export function createTracker<T extends object = Tracker>(source: Capture): T {
         }
       }
 
-      return createTracker({
+      return createTracker(client, {
         kind: 'apply',
         parent: source,
         args: argArray.map(arg => wrapValue(arg)),

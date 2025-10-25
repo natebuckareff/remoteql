@@ -38,12 +38,17 @@ export class Plan {
   private nextId = 0;
   private outputs: number[] = [];
 
+  // biome-ignore lint/suspicious/noExplicitAny: should accept any type of rpc value
   constructor(values: Rpc<any>[]) {
     this._walk(values);
   }
 
   getFrame(): Frame {
     return this.frame;
+  }
+
+  getOutputs(): number[] {
+    return this.outputs;
   }
 
   private _getNextId(): number {
@@ -69,7 +74,7 @@ export class Plan {
     return id;
   }
 
-  private _walk(values: Rpc<any>[]): void {
+  private _walk(values: Rpc<unknown>[]): void {
     for (const value of values) {
       const cap = getCapture(value);
       if (cap === undefined) {
@@ -170,7 +175,7 @@ export class Plan {
         return new Value(cap.value);
 
       case 'array': {
-        const output: any[] = [];
+        const output: unknown[] = [];
         for (const element of cap.value) {
           output.push(unwrap(this._walkCapture(element, frame)));
         }
@@ -178,7 +183,7 @@ export class Plan {
       }
 
       case 'object': {
-        const output: Record<string, any> = {};
+        const output: Record<string, unknown> = {};
         for (const [prop, field] of Object.entries(cap.value)) {
           output[prop] = unwrap(this._walkCapture(field, frame));
         }
