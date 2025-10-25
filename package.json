@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "vitest --coverage --coverage.reporter=lcov --coverage.reporter=text"
+    "test": "vitest --coverage"
   },
   "devDependencies": {
     "@tsconfig/node24": "^24.0.1",
