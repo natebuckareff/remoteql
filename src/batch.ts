@@ -1,20 +1,18 @@
-type Callback<T> = (value: T) => void;
+import assert from "node:assert";
 
-interface Call {
-  input: any;
-  resolve: Callback<any>;
-  reject: Callback<any>;
+interface Call<Input, Output> {
+  input: Input;
+  resolve: Callback<Output>;
+  reject: Callback;
 }
 
-export class BatchScheduler {
-  private calls: Call[] = [];
+export type Callback<T = unknown> = (value: T) => void;
+
+export class BatchScheduler<Input, Output = Input> {
+  private calls: Call<Input, Output>[] = [];
   private promise?: Promise<void>;
 
-  constructor(
-    private request: (
-      inputs: unknown[]
-    ) => Promise<{ index: number; result: unknown }[]>
-  ) {}
+  constructor(private request: (inputs: Input[]) => Promise<Output[]>) {}
 
   private _schedule(): void {
     if (this.promise) {
@@ -24,7 +22,7 @@ export class BatchScheduler {
   }
 
   private async _scheduleAsync(): Promise<void> {
-    let calls: (Call | null)[] | undefined;
+    let calls: (Call<Input, Output> | null)[] | undefined;
 
     try {
       // wait until after the current tick, allowing all awaits to batch
@@ -34,39 +32,30 @@ export class BatchScheduler {
       calls = this.calls;
       this.calls = [];
 
-      const results = await this.request(calls as Call[]);
+      const inputs = calls.map((call) => call!.input);
+      const results = await this.request(inputs);
 
-      for (const { index, result } of results) {
-        const current = calls[index];
-        calls[index] = null;
-
-        if (current === undefined) {
-          throw Error("call index out of range");
-        } else if (current === null) {
-          throw Error("call already handled");
-        } else {
-          try {
-            current.resolve(result);
-          } catch (error) {
-            current.reject(error);
-          }
-        }
+      if (results.length !== calls.length) {
+        throw Error("request returned more results than inputs");
       }
 
-      // check for any unhandled calls
-      for (let i = 0; i < calls.length; i++) {
-        const current = calls[i];
-        if (current) {
-          calls[i] = null;
-          current.reject(Error("missing response"));
+      for (let i = 0; i < results.length; ++i) {
+        const result = results[i]!;
+        const current = calls[i]!;
+        calls[i] = null;
+
+        try {
+          current.resolve(result);
+        } catch (error) {
+          current.reject(error);
         }
       }
     } catch (error) {
+      assert(calls !== undefined, "calls always set before any error");
+
       // fanout batch error to all calls
-      if (calls) {
-        for (const call of calls) {
-          call?.reject(error);
-        }
+      for (const call of calls!) {
+        call?.reject(error);
       }
     } finally {
       // ungate next batch
@@ -74,49 +63,13 @@ export class BatchScheduler {
 
       // flush the next batch, if there is one
       if (this.calls.length > 0) {
-        // TODO: figure out how to exercise this path
         queueMicrotask(() => this._schedule());
       }
     }
   }
 
-  send<T>(input: T, resolve: Callback<T>, reject: Callback<any>): void {
+  send(input: Input, resolve: Callback<Output>, reject: Callback): void {
     this._schedule();
     this.calls.push({ input, resolve, reject });
   }
 }
-
-export class Rpc<T> {
-  constructor(private batch: BatchScheduler, private input: T) {}
-
-  async then<Result>(
-    callback: (reason: T) => Result | Promise<Result>
-  ): Promise<Result> {
-    return new Promise((resolve, reject) => {
-      const success = (value: T) => {
-        return Promise.resolve()
-          .then(() => callback(value))
-          .then(resolve)
-          .catch(reject);
-      };
-      this.batch.send(this.input, success, reject);
-    });
-  }
-}
-
-async function test() {
-  const batch = new BatchScheduler((inputs) => {
-    return Promise.resolve(
-      inputs.map((input, index) => ({ index, result: input }))
-    );
-  });
-
-  const a = new Rpc(batch, 42);
-  const b = new Rpc(batch, "hello");
-  const c = new Rpc(batch, true);
-
-  const [x, y, z] = await Promise.all([a, b, c]);
-  console.log(x, y, z);
-}
-
-test().then();
