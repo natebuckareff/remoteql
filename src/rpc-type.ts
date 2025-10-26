@@ -1,8 +1,12 @@
+// biome-ignore-all lint/suspicious/noExplicitAny: used to match all possible types
+// biome-ignore-all lint/suspicious/noConfusingVoidType: used to match void return types
+// biome-ignore-all lint/complexity/noBannedTypes: used to match Function
+
 /** @internal */
 export const rpcImplSymbol: unique symbol = Symbol();
 
 export class RpcImpl {
-  [rpcImplSymbol]: true;
+  readonly [rpcImplSymbol]: true = true;
 }
 
 export type PlainPrimitive =

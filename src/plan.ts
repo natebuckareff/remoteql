@@ -1,14 +1,13 @@
 import { type Capture, getCapture, type ValueCapture } from './proxy.js';
 import type { Rpc } from './rpc-type.js';
-import { serialize } from './serialize.js';
+import { type Serialized, serialize } from './serialize.js';
 
 export type Frame = Record<number, Operation | Block>;
 
 export type Operation =
-  | ['let', unknown]
+  | ['let', Serialized]
   | ['get', ...(number | string)[]]
-  | ['call', (number | string)[], ...number[]]
-  | ['map', (number | string)[], number];
+  | ['call', (number | string)[], ...number[]];
 
 export interface Block {
   params: number[];

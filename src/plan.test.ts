@@ -20,7 +20,7 @@ interface User {
   friends: number[];
 }
 
-test('basic plan', () => {
+test('basic plan', async () => {
   const client = new Client();
   const rpc = createTracker<Rpc<Basic>>(client, { kind: 'var' });
   const me = rpc.getUserById(42);
@@ -32,8 +32,8 @@ test('basic plan', () => {
       friends: user.friends.map(id => rpc.getUserById(id)),
     },
   }));
-  const op = new Plan([me, firstUser, usersWithFriends]);
-  const frame = op.getFrame();
+  const plan = new Plan([me, firstUser, usersWithFriends]);
+  const frame = plan.getFrame();
   expect(frame).toMatchSnapshot();
-  expect(op.getOutputs()).toEqual([2, 4, 13]);
+  expect(plan.getOutputs()).toEqual([2, 4, 13]);
 });
