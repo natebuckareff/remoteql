@@ -7,7 +7,8 @@ export type Frame = Record<number, Operation | Block>;
 export type Operation =
   | ['let', Serialized]
   | ['get', ...(number | string)[]]
-  | ['call', (number | string)[], ...number[]];
+  | ['call', (number | string)[], ...number[]]
+  | ['map', (number | string)[], number];
 
 export interface Block {
   params: number[];
@@ -149,9 +150,14 @@ export class Plan {
         block.outputs.push(outputId);
         frame[blockId] = block;
 
+        if (fullPath[fullPath.length - 1] !== 'map') {
+          throw Error('invalid map operation');
+        }
+
+        const truncatedPath = fullPath.slice(0, fullPath.length - 1);
         const mapId = this._getIdOrNext(cap);
-        const callOp: Operation = ['call', fullPath, blockId];
-        frame[mapId] = callOp;
+        const mapOp: Operation = ['map', truncatedPath, blockId];
+        frame[mapId] = mapOp;
         return mapId;
       }
 

@@ -7,10 +7,9 @@ exports[`basic plan 1`] = `
     42,
   ],
   "13": [
-    "call",
+    "map",
     [
       3,
-      "map",
     ],
     5,
   ],
@@ -37,11 +36,10 @@ exports[`basic plan 1`] = `
   "5": {
     "frame": {
       "11": [
-        "call",
+        "map",
         [
           6,
           "friends",
-          "map",
         ],
         8,
       ],

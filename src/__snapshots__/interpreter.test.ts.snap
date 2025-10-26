@@ -19,32 +19,47 @@ exports[`basic interpreter 1`] = `
   [
     {
       "info": {
-        "friends": Ref {
-          "index": 11,
-        },
-        "id": Ref {
-          "index": 7,
-        },
+        "friends": [
+          {
+            "friends": [
+              1,
+            ],
+            "id": 2,
+            "name": "Jane",
+          },
+        ],
+        "id": 1,
+        "name": "John",
       },
     },
     {
       "info": {
-        "friends": Ref {
-          "index": 11,
-        },
-        "id": Ref {
-          "index": 7,
-        },
+        "friends": [
+          {
+            "friends": [
+              2,
+            ],
+            "id": 1,
+            "name": "John",
+          },
+        ],
+        "id": 2,
+        "name": "Jane",
       },
     },
     {
       "info": {
-        "friends": Ref {
-          "index": 11,
-        },
-        "id": Ref {
-          "index": 7,
-        },
+        "friends": [
+          {
+            "friends": [
+              2,
+            ],
+            "id": 1,
+            "name": "John",
+          },
+        ],
+        "id": 3,
+        "name": "Jim",
       },
     },
   ],

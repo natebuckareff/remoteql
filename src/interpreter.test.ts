@@ -38,6 +38,7 @@ test('basic interpreter', async () => {
   const usersWithFriends = users.map(user => ({
     info: {
       id: user.id,
+      name: user.name,
       friends: user.friends.map(id => rpc.getUserById(id)),
     },
   }));
@@ -81,7 +82,7 @@ test('rejects on duplicate ref definitions', async () => {
           outputs: [0],
         },
         1: ['let', [[1, 2, 3]]],
-        2: ['call', [1, 'map'], 0],
+        2: ['map', [1], 0],
       };
     },
     getOutputs(): number[] {

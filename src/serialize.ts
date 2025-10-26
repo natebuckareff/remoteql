@@ -72,7 +72,12 @@ export function serialize(input: unknown): Serialized {
   }
 }
 
-export function deserialize(input: Serialized): unknown {
+export function deserialize(
+  input: Serialized,
+  resolve?: (index: number) => unknown,
+): unknown {
+  const rec = (input: Serialized) => deserialize(input, resolve);
+
   const typeOf = typeof input;
   if (typeOf === 'object') {
     if (input === null) {
@@ -86,9 +91,9 @@ export function deserialize(input: Serialized): unknown {
         if (value === 'undefined') {
           return undefined;
         } else if (Array.isArray(value)) {
-          return value.map(x => deserialize(x));
+          return value.map(rec);
         } else if (typeof value === 'number') {
-          return new Ref(value);
+          return resolve ? resolve(value) : new Ref(value);
         } else {
           throw Error('invalid 1-tuple serialized value');
         }
@@ -117,7 +122,7 @@ export function deserialize(input: Serialized): unknown {
     } else {
       const output: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(input as object)) {
-        output[key] = deserialize(value);
+        output[key] = rec(value);
       }
       return output;
     }

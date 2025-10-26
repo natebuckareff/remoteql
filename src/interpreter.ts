@@ -60,18 +60,6 @@ export class Interpreter {
             throw Error(`method not found: ${part}`);
           }
           value = method.bind(instance);
-        } else if (Array.isArray(value) && part === 'map') {
-          type Callback = (
-            value: unknown,
-            index: number,
-            array: unknown[],
-          ) => unknown;
-
-          function map(this: unknown[], callback: Callback) {
-            return Promise.all(this.map(callback));
-          }
-
-          value = map.bind(value);
         } else {
           value = (value as Record<string, unknown>)[part];
         }
@@ -100,7 +88,7 @@ export class Interpreter {
     switch (op[0]) {
       case 'let': {
         const [, value] = op;
-        const deserialized = deserialize(value);
+        const deserialized = deserialize(value, index => this.refs.get(index));
         this._setRef(index, deserialized);
         break;
       }
@@ -127,6 +115,26 @@ export class Interpreter {
           result = await result;
         }
         this._setRef(index, result);
+        break;
+      }
+
+      case 'map': {
+        const [, path, blockIndex] = op;
+
+        const array = await this._resolvePath(path);
+        if (!Array.isArray(array)) {
+          throw Error('value is not an array');
+        }
+
+        const callback = this.refs.get(blockIndex);
+        if (typeof callback !== 'function') {
+          throw Error('map callback is not callable');
+        }
+
+        const results = await Promise.all(
+          array.map((value, index) => callback(value, index, array)),
+        );
+        this._setRef(index, results);
         break;
       }
 
