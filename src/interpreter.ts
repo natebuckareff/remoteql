@@ -121,20 +121,22 @@ export class Interpreter {
       case 'map': {
         const [, path, blockIndex] = op;
 
-        const array = await this._resolvePath(path);
-        if (!Array.isArray(array)) {
-          throw Error('value is not an array');
-        }
-
         const callback = this.refs.get(blockIndex);
         if (typeof callback !== 'function') {
           throw Error('map callback is not callable');
         }
 
-        const results = await Promise.all(
-          array.map((value, index) => callback(value, index, array)),
-        );
-        this._setRef(index, results);
+        const target = await this._resolvePath(path);
+
+        if (Array.isArray(target)) {
+          const results = await Promise.all(
+            target.map((value, index) => callback(value, index, target)),
+          );
+          this._setRef(index, results);
+        } else {
+          const result = await callback(target);
+          this._setRef(index, result);
+        }
         break;
       }
 

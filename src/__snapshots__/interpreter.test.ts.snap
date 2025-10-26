@@ -3,11 +3,12 @@
 exports[`basic interpreter 1`] = `
 [
   {
-    "friends": [
-      1,
-    ],
     "id": 3,
-    "name": "Jim",
+    "name": {
+      "profile": {
+        "name": "Jim",
+      },
+    },
   },
   {
     "friends": [

@@ -32,7 +32,12 @@ test('basic interpreter', async () => {
 
   const client = new Client();
   const rpc = createTracker<Rpc<Basic>>(client, { kind: 'var' });
-  const me = rpc.getUserById(3);
+  const me = rpc.getUserById(3).map(user => ({
+    id: user.id,
+    name: user.name.map(name => ({
+      profile: { name },
+    })),
+  }));
   const users = rpc.getUsers();
   const firstUser = users[0];
   const usersWithFriends = users.map(user => ({

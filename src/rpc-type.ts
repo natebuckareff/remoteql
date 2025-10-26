@@ -26,7 +26,11 @@ export type IsPlainPrimitive<T> = T extends
   ? T
   : never;
 
-export type ConstrainPrimitive<T> = IsPlainPrimitive<T>;
+export type Mappable<E> = {
+  map<const U>(callback: (value: Rpc<E>) => U): Rpc<U>;
+};
+
+export type ConstrainPrimitive<T> = Mappable<T> & IsPlainPrimitive<T>;
 
 export type Resolved<T> = T extends Rpc<infer U> ? U : never;
 
@@ -71,11 +75,10 @@ export type RpcClient<T extends RpcImpl> = {
 /** @internal */
 declare const rpcArraySymbol: unique symbol;
 
-export type RpcObject<T extends object> = T extends
-  | Function
-  | ReadonlyArray<any>
-  ? never
-  : { [K in keyof T]: Rpc<T[K]> };
+export type RpcObject<T extends object> = Mappable<T> &
+  (T extends Function | ReadonlyArray<any>
+    ? never
+    : { [K in keyof T]: Rpc<T[K]> });
 
 export type RpcArray<E> = {
   [Index in Extract<keyof E[], number>]: Rpc<E | undefined>;
