@@ -1,5 +1,5 @@
 {
-	"compilerOptions": {
-		"noUncheckedIndexedAccess": true
-	}
+  "compilerOptions": {
+    "noUncheckedIndexedAccess": true
+  }
 }

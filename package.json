@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "test": "vitest --coverage",
-    "format": "biome format --write ./src"
+    "format": "biome format --write"
   },
   "devDependencies": {
     "@biomejs/biome": "2.3.0",
