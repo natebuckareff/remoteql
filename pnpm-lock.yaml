@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      typekind:
+        specifier: ^0.0.16
+        version: 0.0.16
     devDependencies:
       '@biomejs/biome':
         specifier: 2.3.0
@@ -580,6 +584,12 @@ packages:
     resolution: {integrity: sha512-PSkbLUoxOFRzJYjjxHJt9xro7D+iilgMX/C9lawzVuYiIdcihh9DXmVibBe8lmcFrRi/VzlPjBxbN7rH24q8/Q==}
     engines: {node: '>=14.0.0'}
 
+  trie-memoize@1.2.0:
+    resolution: {integrity: sha512-hEDLVEP1FCgaRtt0oZDJdz2lK9uK7WlB7ASswt9U9cqruSNueVigtRGxI97hevKlViqhAcRgNgzuY/m8FCCMcg==}
+
+  typekind@0.0.16:
+    resolution: {integrity: sha512-QXH2puPefjKi3K7OWOs6ajDque23+EcG7JP+XbM/udD6kT+Ehk/hrjXTLKixtKVvHkquOzGENQS6XbHKE48DmA==}
+
   undici-types@7.16.0:
     resolution: {integrity: sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw==}
 
@@ -1107,6 +1117,12 @@ snapshots:
       picomatch: 4.0.3
 
   tinyrainbow@3.0.3: {}
+
+  trie-memoize@1.2.0: {}
+
+  typekind@0.0.16:
+    dependencies:
+      trie-memoize: 1.2.0
 
   undici-types@7.16.0: {}
 

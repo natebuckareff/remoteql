@@ -1,3 +1,5 @@
+import { inspect } from 'node:util';
+
 export type Thenable<T> = {
   then<Result = T>(
     onfulfilled?:
@@ -7,18 +9,16 @@ export type Thenable<T> = {
   ): Promise<Result>;
 };
 
-export const get = <T>(array: T[], index: number): T => {
-  if (!Number.isSafeInteger(index)) {
-    throw Error('index is not a safe integer');
+export const unwrap = <T>(value: T | null | undefined): T => {
+  if (value == null) {
+    throw Error(`value is ${value === undefined ? 'undefined' : 'null'}`);
   }
-
-  if (index < 0 || index >= array.length) {
-    throw Error('index out of bounds');
-  }
-
-  // biome-ignore lint/style/noNonNullAssertion: bounds checked
-  return array[index]!;
+  return value;
 };
+
+export function deepLog(value: unknown) {
+  console.log(inspect(value, false, null, true));
+}
 
 export const isThenable = (value: unknown): value is Thenable<unknown> => {
   return (
