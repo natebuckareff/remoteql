@@ -1,7 +1,7 @@
 import { tk } from 'typekind';
 import { expect, test } from 'vitest';
 import { initApi } from './api.js';
-import { InterpreterV2 } from './interpreter-v2.js';
+import { InterpreterV2 } from './interpreter.js';
 import { createProxy } from './operation.js';
 import { PlanBuilder } from './plan-builder.js';
 import { initServer } from './server.js';
