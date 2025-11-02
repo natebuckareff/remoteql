@@ -1,0 +1,68 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`basic interpreter 1`] = `
+[
+  {
+    "id": 3,
+    "name": {
+      "profile": {
+        "name": "Jim",
+      },
+    },
+  },
+  {
+    "friends": [
+      2,
+    ],
+    "id": 1,
+    "name": "John",
+  },
+  [
+    {
+      "info": {
+        "friends": [
+          {
+            "friends": [
+              1,
+            ],
+            "id": 2,
+            "name": "Jane",
+          },
+        ],
+        "id": 1,
+        "name": "John",
+      },
+    },
+    {
+      "info": {
+        "friends": [
+          {
+            "friends": [
+              2,
+            ],
+            "id": 1,
+            "name": "John",
+          },
+        ],
+        "id": 2,
+        "name": "Jane",
+      },
+    },
+    {
+      "info": {
+        "friends": [
+          {
+            "friends": [
+              2,
+            ],
+            "id": 1,
+            "name": "John",
+          },
+        ],
+        "id": 3,
+        "name": "Jim",
+      },
+    },
+  ],
+]
+`;

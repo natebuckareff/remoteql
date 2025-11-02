@@ -1,11 +1,10 @@
 import { tk } from 'typekind';
-import { test } from 'vitest';
+import { expect, test } from 'vitest';
 import { initApi } from './api.js';
 import { InterpreterV2 } from './interpreter-v2.js';
 import { createProxy } from './operation.js';
 import { PlanBuilder } from './plan-builder.js';
 import { initServer } from './server.js';
-import { deepLog } from './util.js';
 
 test('basic interpreter', async () => {
   interface User {
@@ -71,5 +70,5 @@ test('basic interpreter', async () => {
 
   const frame = builder.finish();
   const results = await interpreter.evaluate(frame);
-  deepLog(results);
+  expect(results).toMatchSnapshot();
 });
