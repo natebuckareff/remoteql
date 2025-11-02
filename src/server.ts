@@ -6,9 +6,9 @@ export type InferApi<T extends AnyServiceApi> = {
     infer Input,
     infer Output
   >
-    ? (
-        ...input: Input['Type']
-      ) => Promise<Output extends AnyCodec ? Output['Type'] : void>
+    ? (params: {
+        input: Input['Type'];
+      }) => Promise<Output extends AnyCodec ? Output['Type'] : void>
     : never;
 };
 

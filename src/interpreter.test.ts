@@ -1,9 +1,10 @@
 import { tk } from 'typekind';
 import { expect, test } from 'vitest';
-import { initApi } from './api.js';
+import { InferServiceType, initApi } from './api.js';
 import { InterpreterV2 } from './interpreter.js';
 import { createProxy } from './operation.js';
 import { PlanBuilder } from './plan-builder.js';
+import { Rpc } from './rpc-type.js';
 import { initServer } from './server.js';
 
 test('basic interpreter', async () => {
@@ -21,8 +22,8 @@ test('basic interpreter', async () => {
 
   const rq1 = initApi();
   const api = rq1.api({
-    getUsers: rq1.handler(tk.void(), tk.array(tk.any())),
-    getUserById: rq1.handler(tk.tuple(tk.number()), tk.any()),
+    getUsers: rq1.handler(tk.void(), tk.array(tk.any<User>())),
+    getUserById: rq1.handler(tk.number(), tk.any<User>()),
   });
 
   const rq2 = initServer();
@@ -32,7 +33,7 @@ test('basic interpreter', async () => {
     async getUsers(): Promise<User[]> {
       return db;
     },
-    async getUserById(id: number): Promise<User> {
+    async getUserById({ input: id }): Promise<User> {
       const user = db.find(user => user.id === id)!;
       if (user === undefined) {
         throw Error(`user not found: ${id}`);
@@ -43,21 +44,20 @@ test('basic interpreter', async () => {
 
   const builder = new PlanBuilder();
   const root = builder.pushParam(api);
-  const rpc = createProxy<any>(builder, root);
-
-  const me = rpc.getUserById(3).map((user: any) => ({
+  const rpc = createProxy<Rpc<InferServiceType<typeof api>>>(builder, root);
+  const me = rpc.getUserById(3).map(user => ({
     id: user.id,
-    name: user.name.map((name: any) => ({
+    name: user.name.map(name => ({
       profile: { name },
     })),
   }));
   const users = rpc.getUsers();
   const firstUser = users[0];
-  const usersWithFriends = users.map((user: any) => ({
+  const usersWithFriends = users.map(user => ({
     info: {
       id: user.id,
       name: user.name,
-      friends: user.friends.map((id: any) => rpc.getUserById(id)),
+      friends: user.friends.map(id => rpc.getUserById(id)),
     },
   }));
 

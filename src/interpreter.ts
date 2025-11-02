@@ -64,7 +64,8 @@ export class InterpreterV2 {
         if (typeof callable !== 'function') {
           throw Error('target is not callable');
         }
-        let result = callable(...args);
+        const input = args.length === 1 ? args[0] : args;
+        let result = callable({ input });
         if (isThenable(result)) {
           result = await result;
         }

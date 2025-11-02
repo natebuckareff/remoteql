@@ -1,4 +1,3 @@
-import { inspect } from 'node:util';
 import { tk } from 'typekind';
 import { expect, test } from 'vitest';
 import { initApi } from './api.js';
@@ -38,10 +37,6 @@ test('basic plan', async () => {
   const frame = builder.finish();
   expect(frame).toMatchSnapshot();
 });
-
-function deepLog(value: unknown) {
-  console.log(inspect(value, false, null, true));
-}
 
 test('kitchen sink test', () => {
   const rq = initApi();
