@@ -1,5 +1,4 @@
 import assert from 'node:assert';
-import { get } from './util.js';
 
 interface Call<Input, Output> {
   input: Input;
@@ -42,10 +41,10 @@ export class BatchScheduler<Input, Output = Input> {
       }
 
       for (let i = 0; i < results.length; ++i) {
-        const result = get(results, i);
+        const result = results[i]!;
 
         // biome-ignore lint/style/noNonNullAssertion: always set to nul _after_
-        const current = get(calls, i)!;
+        const current = calls[i]!;
 
         calls[i] = null;
 
