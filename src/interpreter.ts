@@ -5,13 +5,13 @@ import type { SerializedRootFrame } from './plan-builder.js';
 import { ServiceBuilder } from './server.js';
 import { isThenable } from './util.js';
 
-export class InterpreterV2 {
+export class Interpreter {
   private lastId?: number;
 
   private constructor(private refs: Map<number, unknown>) {}
 
-  static create(): InterpreterV2 {
-    return new InterpreterV2(new Map());
+  static create(): Interpreter {
+    return new Interpreter(new Map());
   }
 
   bind<T extends ServiceBuilder<AnyServiceApi>>(impl: T): void {
@@ -128,9 +128,9 @@ export class InterpreterV2 {
     this.setRef(id, callback);
   }
 
-  private clone(): InterpreterV2 {
+  private clone(): Interpreter {
     const refs = new Map(this.refs);
-    return new InterpreterV2(refs);
+    return new Interpreter(refs);
   }
 
   private setRef(id: number, value: unknown): void {

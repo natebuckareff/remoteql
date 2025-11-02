@@ -1,7 +1,7 @@
 import { tk } from 'typekind';
 import { expect, test } from 'vitest';
 import { InferServiceType, initApi } from './api.js';
-import { InterpreterV2 } from './interpreter.js';
+import { Interpreter } from './interpreter.js';
 import { createProxy } from './operation.js';
 import { PlanBuilder } from './plan-builder.js';
 import { Rpc } from './rpc-type.js';
@@ -65,7 +65,7 @@ test('basic interpreter', async () => {
   builder.resolve(firstUser);
   builder.resolve(usersWithFriends);
 
-  const interpreter = InterpreterV2.create();
+  const interpreter = Interpreter.create();
   interpreter.bind(userService);
 
   const frame = builder.finish();
