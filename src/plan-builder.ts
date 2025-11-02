@@ -16,11 +16,16 @@ interface DataCacheEntry {
   codec: AnyCodec;
 }
 
+export interface SerializedRootFrame extends SerializedFrame {
+  outputs: number[];
+}
+
 export class PlanBuilder {
   private nextId: number = 0;
   private dataCache: Map<unknown, DataCacheEntry[]> = new Map();
   private stack: Frame[] = [];
   private bindings: Map<number, ServiceApi<HandlerApis>> = new Map();
+  private outputs: number[] = [];
 
   constructor() {
     this.stack.push(new Frame());
@@ -136,9 +141,11 @@ export class PlanBuilder {
 
   resolve(value: unknown): void {
     const op = unwrapOperation(value);
-    if (op) {
-      this.resolveOp(op);
+    if (op === undefined) {
+      throw Error('not an operation');
     }
+    const { id } = this.resolveOp(op);
+    this.outputs.push(id);
   }
 
   resolveOp(op: Operation): Operation {
@@ -148,7 +155,7 @@ export class PlanBuilder {
     return op;
   }
 
-  finish(): SerializedFrame {
+  finish(): SerializedRootFrame {
     const frame = this.stack.pop();
 
     if (frame === undefined) {
@@ -159,10 +166,10 @@ export class PlanBuilder {
       throw Error('stack is not settled');
     }
 
-    // TODO: resolve remaining get ops, probably want to do this when they are
-    // awaited meaning .finish is called by the batch finalizer
-
-    return frame.serialize();
+    return {
+      ...frame.serialize(),
+      outputs: this.outputs,
+    };
   }
 }
 

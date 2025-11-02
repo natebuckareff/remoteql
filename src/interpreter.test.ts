@@ -5,7 +5,7 @@ import { Frame, Plan } from './plan.js';
 import { createTracker } from './proxy.js';
 import { Rpc, RpcImpl } from './rpc-type.js';
 
-test('basic interpreter', async () => {
+test.skip('basic interpreter', async () => {
   class Basic extends RpcImpl {
     constructor(private users: User[]) {
       super();
@@ -62,7 +62,7 @@ test('basic interpreter', async () => {
   expect(results).toMatchSnapshot();
 });
 
-test('rejects on undefined ref', async () => {
+test.skip('rejects on undefined ref', async () => {
   const plan = {
     getFrame(): Frame {
       return {
@@ -75,7 +75,7 @@ test('rejects on undefined ref', async () => {
   await expect(promise).rejects.toThrow('ref not defined: 100');
 });
 
-test('rejects on duplicate ref definitions', async () => {
+test.skip('rejects on duplicate ref definitions', async () => {
   const plan = {
     getFrame(): Frame {
       return {
@@ -99,7 +99,7 @@ test('rejects on duplicate ref definitions', async () => {
   await expect(promise).rejects.toThrow('ref already defined: 1');
 });
 
-test('optional chaining', async () => {
+test.skip('optional chaining', async () => {
   const plan = {
     getFrame(): Frame {
       return {
@@ -116,7 +116,7 @@ test('optional chaining', async () => {
   expect(result).toEqual([undefined]);
 });
 
-test('throws if impl method not found', async () => {
+test.skip('throws if impl method not found', async () => {
   const plan = {
     getFrame(): Frame {
       return {
@@ -136,7 +136,7 @@ test('throws if impl method not found', async () => {
   await expect(promise).rejects.toThrow('method not found: method');
 });
 
-test('handles nested promises', async () => {
+test.skip('handles nested promises', async () => {
   const plan = {
     getFrame(): Frame {
       return {

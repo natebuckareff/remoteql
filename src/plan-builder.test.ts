@@ -18,6 +18,7 @@ test('basic plan', async () => {
   const me = rpc.getUserById(42);
   const users = rpc.getUsers().map((user: any) => ({
     id: user.id,
+    friends: user.friends,
   }));
   const firstUser = users[0];
   const firstUserId = firstUser.id;
@@ -34,7 +35,8 @@ test('basic plan', async () => {
   builder.resolve(firstUserId);
   builder.resolve(usersWithFriends);
 
-  expect(builder.finish()).toMatchSnapshot();
+  const frame = builder.finish();
+  expect(frame).toMatchSnapshot();
 });
 
 function deepLog(value: unknown) {

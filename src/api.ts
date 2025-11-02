@@ -26,7 +26,7 @@ export type InferServiceType<T extends ServiceApi<HandlerApis>> = {
 };
 
 export type InferHanderType<T extends HandlerApi<any, any>> = (
-  input: InferCodecType<T['input']>,
+  ...input: T['input']['Type']
 ) => Promise<void extends T['output'] ? void : InferCodecType<T['output']>>;
 
 export class ApiBuilder {
