@@ -6,10 +6,10 @@ export type InferApi<T extends AnyServiceApi> = {
     infer Input,
     infer Output
   >
-    ? (params: {
-        input: Input['Type'];
-      }) => Promise<Output extends AnyCodec ? Output['Type'] : void>
-    : never;
+  ? (params: {
+    input: Input extends AnyCodec ? Input['Type'] : void;
+  }) => Promise<Output extends AnyCodec ? Output['Type'] : void>
+  : never;
 };
 
 export interface ServerSpec {
@@ -19,7 +19,7 @@ export interface ServerSpec {
 }
 
 export class ServerInstance {
-  constructor(public readonly spec: ServerSpec) {}
+  constructor(public readonly spec: ServerSpec) { }
 }
 
 export class ServerBuilder {
@@ -35,7 +35,7 @@ export class ServerBuilder {
 export class ServiceBuilder<const Api extends AnyServiceApi> {
   public impl?: InferApi<Api>;
 
-  constructor(public readonly api: Api) {}
+  constructor(public readonly api: Api) { }
 
   bind<const Impl extends InferApi<Api>>(impl: Impl): this {
     this.impl = { ...this.impl, ...impl };

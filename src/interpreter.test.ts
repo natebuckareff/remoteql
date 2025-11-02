@@ -24,6 +24,7 @@ test('basic interpreter', async () => {
   const api = rq1.api({
     getUsers: rq1.handler(tk.void(), tk.array(tk.any<User>())),
     getUserById: rq1.handler(tk.number(), tk.any<User>()),
+    test: rq1.handler(),
   });
 
   const rq2 = initServer();
@@ -40,7 +41,16 @@ test('basic interpreter', async () => {
       }
       return user;
     },
+    async test(): Promise<void> {
+      return;
+    },
   });
+
+  const server = rq2.server({
+    services: {
+      userService,
+    },
+  })
 
   const builder = new PlanBuilder();
   const root = builder.pushParam(api);
