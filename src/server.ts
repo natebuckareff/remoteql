@@ -46,37 +46,3 @@ export class ServiceBuilder<const Api extends AnyServiceApi> {
 export function initServer(): ServerBuilder {
   return new ServerBuilder();
 }
-
-/*
-const rq2 = initServer();
-
-const rootService = rq2.service(rootApi).bind({
-  async getCap({ input }) {
-    input;
-    return {} as any;
-  },
-
-  async doSomething({ input }) {
-    console.log(input);
-    return 'hello';
-  },
-});
-
-const otherService = rq2.service(otherApi);
-
-otherService.bind({
-  async foo({ input }) {
-    console.log(input.username);
-    return 'hello';
-  },
-});
-
-// ~
-
-const server = rq2.server({
-  services: {
-    root: rootService,
-    other: otherService,
-  },
-});
-*/
