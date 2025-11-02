@@ -27,7 +27,7 @@ export type IsPlainPrimitive<T> = T extends
   : never;
 
 export type Mappable<E> = {
-  map<const U>(callback: (value: Rpc<E>) => U): Rpc<U>;
+  map<U>(callback: (value: Rpc<E>) => U): Rpc<U>;
 };
 
 export type ConstrainPrimitive<T> = Mappable<T> & IsPlainPrimitive<T>;
@@ -45,18 +45,18 @@ export type Rpc<T> = RpcPromiseMarker<T> &
   ([T] extends [PlainPrimitive]
     ? ConstrainPrimitive<T>
     : T extends (...args: infer Args) => infer ReturnType
-      ? RpcFunction<Args, ReturnType>
-      : T extends readonly [...any]
-        ? number extends T['length']
-          ? RpcArray<T[number]>
-          : RpcTuple<T>
-        : T extends RpcImpl
-          ? RpcClient<T>
-          : T extends object
-            ? RpcObject<T>
-            : void extends T
-              ? void
-              : never);
+    ? RpcFunction<Args, ReturnType>
+    : T extends readonly [...any]
+    ? number extends T['length']
+    ? RpcArray<T[number]>
+    : RpcTuple<T>
+    : T extends RpcImpl
+    ? RpcClient<T>
+    : T extends object
+    ? RpcObject<T>
+    : void extends T
+    ? void
+    : never);
 
 export type RpcFunction<Args extends any[], ReturnType> = (
   ...args: RpcParams<Args>
@@ -68,8 +68,8 @@ export type RpcParams<Params extends any[]> = {
 
 export type RpcClient<T extends RpcImpl> = {
   [K in keyof T]: T[K] extends (...args: infer Args) => infer ReturnType
-    ? RpcFunction<Args, ReturnType>
-    : never;
+  ? RpcFunction<Args, ReturnType>
+  : never;
 };
 
 /** @internal */
@@ -84,7 +84,7 @@ export type RpcArray<E> = {
   [Index in Extract<keyof E[], number>]: Rpc<E | undefined>;
 } & {
   at(index: number): Rpc<E>;
-  map<const U>(
+  map<U>(
     callback: (value: Rpc<E>, index: Rpc<number>) => U,
   ): U extends Rpc<infer E> ? Rpc<E[]> : Rpc<U[]>;
 };
