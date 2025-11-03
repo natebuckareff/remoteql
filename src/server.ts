@@ -1,48 +1,92 @@
 import type { AnyCodec } from 'typekind';
-import type { AnyServiceApi, HandlerApi } from './api.js';
+import type {
+  AnyRouterApi,
+  AnyServiceApi,
+  HandlerApi,
+  HandlerApis,
+  InferServiceType,
+  ServiceApi,
+} from './api.js';
+import { type ServerConfig, ServerInstance } from './server-instance.js';
 
-export type InferApi<T extends AnyServiceApi> = {
-  [K in keyof T['handlers']]: T['handlers'][K] extends HandlerApi<
+export type InferRouter<Context, T extends AnyRouterApi> = {
+  [K in keyof T['routes']]: T['routes'][K] extends AnyServiceApi
+    ? ServiceInstance<Context, T['routes'][K]>
+    : InferRouter<Context, Extract<T['routes'][K], AnyRouterApi>>;
+};
+
+export type InferApi<Context, T extends AnyServiceApi> = {
+  [K in keyof T['handlers']]?: T['handlers'][K] extends HandlerApi<
     infer Input,
     infer Output
   >
-  ? (params: {
-    input: Input extends AnyCodec ? Input['Type'] : void;
-  }) => Promise<Output extends AnyCodec ? Output['Type'] : void>
-  : never;
+    ? Handler<Context, Input, Output>
+    : never;
 };
 
-export interface ServerSpec {
-  services: {
-    [name: string]: ServiceBuilder<AnyServiceApi>;
-  };
+export type Handler<
+  Context,
+  Input extends AnyCodec | void,
+  Output extends AnyCodec | void,
+> = (params: {
+  cx: Context;
+  input: Input extends AnyCodec ? Input['Type'] : void;
+}) => Promise<Output extends AnyCodec ? Output['Type'] : void>;
+
+export interface ContextParams {
+  inject: <T extends ServiceApi<HandlerApis>>(api: T) => InferServiceType<T>;
 }
 
-export class ServerInstance {
-  constructor(public readonly spec: ServerSpec) { }
+export function initServer<Context = unknown>(): ServerBuilder<Context> {
+  return new ServerBuilder();
 }
 
-export class ServerBuilder {
-  service<const Api extends AnyServiceApi>(api: Api): ServiceBuilder<Api> {
-    return new ServiceBuilder(api);
+export class ServerBuilder<Context> {
+  private contextFactory?: (params: ContextParams) => Promise<Context>;
+
+  context<T>(
+    callback: (params: ContextParams) => Promise<T>,
+  ): ServerBuilder<T> {
+    const converted = this as unknown as ServerBuilder<T>;
+    converted.contextFactory = callback;
+    return converted;
   }
 
-  server(spec: ServerSpec): ServerInstance {
-    return new ServerInstance(spec);
+  router<Routes extends AnyRouterApi>(
+    routes: Routes,
+  ): RouterInstance<Context, Routes> {
+    return new RouterInstance(routes);
+  }
+
+  service<Api extends AnyServiceApi>(api: Api): ServiceInstance<Context, Api> {
+    return new ServiceInstance(api);
+  }
+
+  server<Routes extends AnyRouterApi>(
+    config: ServerConfig<Context, Routes>,
+  ): ServerInstance<Context, Routes> {
+    return new ServerInstance(config);
   }
 }
 
-export class ServiceBuilder<const Api extends AnyServiceApi> {
-  public impl?: InferApi<Api>;
+export class RouterInstance<Context, Routes extends AnyRouterApi> {
+  public impl?: InferRouter<Context, Routes>;
 
-  constructor(public readonly api: Api) { }
+  constructor(public readonly routes: Routes) {}
 
-  bind<const Impl extends InferApi<Api>>(impl: Impl): this {
+  bind<Impl extends InferRouter<Context, Routes>>(impl: Impl): this {
     this.impl = { ...this.impl, ...impl };
     return this;
   }
 }
 
-export function initServer(): ServerBuilder {
-  return new ServerBuilder();
+export class ServiceInstance<Context, Api extends AnyServiceApi> {
+  public impl?: InferApi<Context, Api>;
+
+  constructor(public readonly api: Api) {}
+
+  bind<Impl extends InferApi<Context, Api>>(impl: Impl): this {
+    this.impl = { ...this.impl, ...impl };
+    return this;
+  }
 }

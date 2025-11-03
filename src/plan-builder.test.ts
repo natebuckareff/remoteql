@@ -6,16 +6,19 @@ import { PlanBuilder } from './plan-builder.js';
 
 test('basic plan', async () => {
   const rq = initApi();
-  const api = rq.api({
+  const userApi = rq.api({
     getUsers: rq.handler(tk.void(), tk.array(tk.any())),
     getUserById: rq.handler(tk.number(), tk.any()),
+  });
+  const api = rq.router({
+    user: userApi,
   });
 
   const builder = new PlanBuilder();
   const root = builder.pushParam(api);
   const rpc = createProxy<any>(builder, root);
-  const me = rpc.getUserById(42);
-  const users = rpc.getUsers().map((user: any) => ({
+  const me = rpc.user.getUserById(42);
+  const users = rpc.user.getUsers().map((user: any) => ({
     id: user.id,
     friends: user.friends,
   }));
@@ -25,7 +28,7 @@ test('basic plan', async () => {
   const usersWithFriends = users.map((user: any) => ({
     info: {
       id: user.id,
-      friends: user.friends.map((id: any) => rpc.getUserById(id)),
+      friends: user.friends.map((id: any) => rpc.user.getUserById(id)),
     },
   }));
 
@@ -40,7 +43,7 @@ test('basic plan', async () => {
 
 test('kitchen sink test', () => {
   const rq = initApi();
-  const api = rq.api({
+  const userApi = rq.api({
     getUserById: rq.handler(tk.bigint(), tk.any()),
     getBestFriendOf: rq.handler(tk.number(), tk.any()),
     getThing: rq.handler(tk.number(), tk.void()),
@@ -53,6 +56,9 @@ test('kitchen sink test', () => {
       tk.void(),
     ),
   });
+  const api = rq.router({
+    user: userApi,
+  });
 
   const builder = new PlanBuilder();
   const root = builder.pushParam(api);
@@ -60,9 +66,9 @@ test('kitchen sink test', () => {
 
   const now = 1762035193626;
 
-  client.getUserById(42n).map((me: any) => {
-    const friends = me.friends.map((id: any) => client.getUserById(id));
-    const bestFriend = client.getBestFriendOf(me.id);
+  client.user.getUserById(42n).map((me: any) => {
+    const friends = me.friends.map((id: any) => client.user.getUserById(id));
+    const bestFriend = client.user.getBestFriendOf(me.id);
 
     return {
       id: me.id,
@@ -75,7 +81,7 @@ test('kitchen sink test', () => {
     };
   });
 
-  const thing = client.getThing(100);
+  const thing = client.user.getThing(100);
 
   const data = {
     value: 100,
@@ -83,8 +89,8 @@ test('kitchen sink test', () => {
     when: new Date(now),
   };
 
-  client.doSomething(data);
-  client.doSomething(data);
+  client.user.doSomething(data);
+  client.user.doSomething(data);
 
   expect(builder.finish()).toMatchSnapshot();
 });

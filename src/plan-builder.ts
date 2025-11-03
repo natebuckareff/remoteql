@@ -1,6 +1,6 @@
 import type { AnyCodec } from 'typekind';
 import { TupleCodec } from 'typekind';
-import type { HandlerApis, ServiceApi } from './api.js';
+import { type AnyRouterApi, type AnyServiceApi, RouterApi } from './api.js';
 import { Frame, type SerializedFrame } from './frame.js';
 import type {
   NormalizedTarget,
@@ -24,23 +24,23 @@ export class PlanBuilder {
   private nextId: number = 0;
   private dataCache: Map<unknown, DataCacheEntry[]> = new Map();
   private stack: Frame[] = [];
-  private bindings: Map<number, ServiceApi<HandlerApis>> = new Map();
+  private bindings: Map<number, AnyRouterApi> = new Map();
   private outputs: number[] = [];
 
   constructor() {
     this.stack.push(new Frame());
   }
 
-  pushParam(service?: ServiceApi<HandlerApis>): OpType<'param'> {
+  pushParam(router?: AnyRouterApi): OpType<'param'> {
     const id = this.getNextId();
     this.current().pushParam(id);
-    if (service !== undefined) {
-      this.bindings.set(id, service);
+    if (router !== undefined) {
+      this.bindings.set(id, router);
     }
     return { type: 'param', id };
   }
 
-  getParamBinding(id: number): ServiceApi<HandlerApis> {
+  getParamBinding(id: number): AnyRouterApi {
     const binding = this.bindings.get(id);
     if (binding === undefined) {
       throw Error(`param binding not bound`);
@@ -49,16 +49,43 @@ export class PlanBuilder {
   }
 
   getParamCodec(target: NormalizedTarget, index: number) {
-    if (target.path.length !== 1) {
-      throw Error('invalid param binding target');
+    let router = this.getParamBinding(target.id);
+    let service: AnyServiceApi | undefined;
+    const path: string[] = [...target.path];
+    while (true) {
+      const p = path.shift();
+      if (p === undefined) {
+        break;
+      }
+
+      const route = router.routes[p];
+
+      if (route === undefined) {
+        throw Error(`route not found: "${[...path, p].join('.')}"`);
+      }
+
+      if (route instanceof RouterApi) {
+        router = route;
+        continue;
+      }
+
+      service = route;
+      break;
     }
 
-    const api = this.getParamBinding(target.id);
-    const handlerName = unwrap(target.path[0]);
-    const handler = api.handlers[handlerName];
+    if (path.length !== 1) {
+      throw Error(`invalid route: "${target.path.join('.')}"`);
+    }
+
+    if (service === undefined) {
+      throw Error(`service not found: "${target.path.join('.')}"`);
+    }
+
+    const handlerName = path[0]!;
+    const handler = service.handlers[handlerName];
 
     if (handler === undefined) {
-      throw Error(`handler not found`);
+      throw Error(`handler not found: "${target.path.join('.')}"`);
     }
 
     const inputCodec = handler.input;

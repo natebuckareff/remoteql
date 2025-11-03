@@ -136,6 +136,9 @@ export function createProxy<T extends object>(
             argIds.push(argOp.id);
           } else {
             const codec = builder.getParamCodec(target, i);
+            if (codec === undefined) {
+              throw Error('handler argument index out of bounds');
+            }
             const dataOp = builder.pushData(codec, arg);
             argIds.push(dataOp.id);
           }

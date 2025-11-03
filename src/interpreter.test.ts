@@ -1,11 +1,11 @@
 import { tk } from 'typekind';
 import { expect, test } from 'vitest';
-import { InferServiceType, initApi } from './api.js';
+import { InferRouterType, InferServiceType, initApi } from './api.js';
 import { Interpreter } from './interpreter.js';
 import { createProxy } from './operation.js';
 import { PlanBuilder } from './plan-builder.js';
 import { Rpc } from './rpc-type.js';
-import { initServer } from './server.js';
+import { initServer, RouterInstance } from './server.js';
 
 test('basic interpreter', async () => {
   interface User {
@@ -21,16 +21,17 @@ test('basic interpreter', async () => {
   ];
 
   const rq1 = initApi();
-  const api = rq1.api({
+  const userApi = rq1.api({
     getUsers: rq1.handler(tk.void(), tk.array(tk.any<User>())),
     getUserById: rq1.handler(tk.number(), tk.any<User>()),
     test: rq1.handler(),
   });
+  const api = rq1.router({
+    user: userApi,
+  });
 
   const rq2 = initServer();
-  const userService = rq2.service(api);
-
-  userService.bind({
+  const userService = rq2.service(userApi).bind({
     async getUsers(): Promise<User[]> {
       return db;
     },
@@ -46,28 +47,24 @@ test('basic interpreter', async () => {
     },
   });
 
-  const server = rq2.server({
-    services: {
-      userService,
-    },
-  })
+  const router = rq2.router(api).bind({ user: userService });
 
   const builder = new PlanBuilder();
   const root = builder.pushParam(api);
-  const rpc = createProxy<Rpc<InferServiceType<typeof api>>>(builder, root);
-  const me = rpc.getUserById(3).map(user => ({
+  const rpc = createProxy<Rpc<InferRouterType<typeof api>>>(builder, root);
+  const me = rpc.user.getUserById(3).map(user => ({
     id: user.id,
     name: user.name.map(name => ({
       profile: { name },
     })),
   }));
-  const users = rpc.getUsers();
+  const users = rpc.user.getUsers();
   const firstUser = users[0];
   const usersWithFriends = users.map(user => ({
     info: {
       id: user.id,
       name: user.name,
-      friends: user.friends.map(id => rpc.getUserById(id)),
+      friends: user.friends.map(id => rpc.user.getUserById(id)),
     },
   }));
 
@@ -75,8 +72,7 @@ test('basic interpreter', async () => {
   builder.resolve(firstUser);
   builder.resolve(usersWithFriends);
 
-  const interpreter = Interpreter.create();
-  interpreter.bind(userService);
+  const interpreter = Interpreter.create(router);
 
   const frame = builder.finish();
   const results = await interpreter.evaluate(frame);

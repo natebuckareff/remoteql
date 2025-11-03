@@ -1,22 +1,35 @@
-import type { AnyServiceApi } from './api.js';
+import type { AnyRouterApi } from './api.js';
 import type { SerializedFrame, SerializedOp } from './frame.js';
 import { type Expr, noramlizeTarget, type Target } from './operation.js';
 import type { SerializedRootFrame } from './plan-builder.js';
-import { ServiceBuilder } from './server.js';
+import type { Handler } from './server.js';
+import { RouterInstance, ServiceInstance } from './server.js';
 import { isThenable } from './util.js';
+
+type ResolveResult = ValueResolveResult | HandlerResolveResult;
+
+interface ValueResolveResult {
+  kind: 'value';
+  value: unknown;
+}
+
+interface HandlerResolveResult {
+  kind: 'handler';
+  routers: RouterInstance<any, any>[];
+  service: ServiceInstance<any, any>;
+  handler: Handler<any, any, any>;
+}
 
 export class Interpreter {
   private lastId?: number;
 
   private constructor(private refs: Map<number, unknown>) {}
 
-  static create(): Interpreter {
-    return new Interpreter(new Map());
-  }
-
-  bind<T extends ServiceBuilder<AnyServiceApi>>(impl: T): void {
-    const index = this.refs.size;
-    this.refs.set(index, impl);
+  static create(router: RouterInstance<any, any>): Interpreter {
+    const interpreter = new Interpreter(new Map());
+    const index = interpreter.refs.size;
+    interpreter.refs.set(index, router);
+    return interpreter;
   }
 
   async evaluate(frame: SerializedRootFrame): Promise<unknown[]> {
@@ -45,7 +58,11 @@ export class Interpreter {
     switch (op[0]) {
       case 'get': {
         const [, target] = op;
-        const value = this.resolveTarget(target);
+        const result = this.resolveTarget(target);
+        if (result.kind !== 'value') {
+          throw Error('target is not a value');
+        }
+        const { value } = result;
         this.setRef(id, value);
         break;
       }
@@ -58,18 +75,18 @@ export class Interpreter {
 
       case 'apply': {
         const [, target, argIds] = op;
-
-        const callable = this.resolveTarget(target);
+        const result = this.resolveTarget(target);
+        if (result.kind !== 'handler') {
+          throw Error('target is not a service handler');
+        }
+        const { handler } = result;
         const args = argIds.map(id => this.refs.get(id));
-        if (typeof callable !== 'function') {
-          throw Error('target is not callable');
+        const input = args.length === 1 ? args[0] : args; // XXX
+        let output = handler({ cx: {}, input }); // XXX
+        if (isThenable(output)) {
+          output = await output;
         }
-        const input = args.length === 1 ? args[0] : args;
-        let result = callable({ input });
-        if (isThenable(result)) {
-          result = await result;
-        }
-        this.setRef(id, result);
+        this.setRef(id, output);
         break;
       }
 
@@ -79,17 +96,21 @@ export class Interpreter {
         if (typeof callback !== 'function') {
           throw Error('map callback is not a function');
         }
-        const mappable = this.resolveTarget(target);
-        let result: unknown;
+        const result = this.resolveTarget(target);
+        if (result.kind !== 'value') {
+          throw Error('target is not a value');
+        }
+        const { value: mappable } = result;
+        let output: unknown;
         if (Array.isArray(mappable)) {
           const promises = mappable.map(async (value, index) => {
             return callback(value, index, mappable);
           });
-          result = await Promise.all(promises);
+          output = await Promise.all(promises);
         } else {
-          result = await callback(mappable);
+          output = await callback(mappable);
         }
-        this.setRef(id, result);
+        this.setRef(id, output);
         break;
       }
 
@@ -141,34 +162,85 @@ export class Interpreter {
     this.refs.set(id, value);
   }
 
-  private resolveTarget(target: Target): unknown {
+  private resolveTarget(target: Target): ResolveResult {
     const { id, path } = noramlizeTarget(target);
 
     let value = this.refs.get(id);
 
-    for (const p of path) {
+    for (let i = 0; i < path.length; i++) {
       if (value == null) {
         break;
       }
 
-      let child: unknown;
-
-      if (value instanceof ServiceBuilder) {
-        child = value.impl?.[p];
-      } else {
-        child = (value as Record<string, unknown>)[p];
+      if (value instanceof RouterInstance) {
+        return this.resolveRouter(value, path.slice(i));
       }
 
-      if (typeof child === 'function') {
-        if (value instanceof ServiceBuilder) {
-          child = child.bind(value);
-        }
-      }
+      const p = path[i]!;
 
-      value = child;
+      value = (value as Record<string, unknown>)[p];
     }
 
-    return value;
+    return { kind: 'value', value };
+  }
+
+  private resolveRouter(
+    router: RouterInstance<any, AnyRouterApi>,
+    path: string[],
+  ): HandlerResolveResult {
+    const originalPath = [...path];
+    const routers: RouterInstance<any, any>[] = [router];
+    let service: ServiceInstance<any, any> | undefined;
+
+    while (true) {
+      const p = path.shift();
+      if (p === undefined) {
+        break;
+      }
+
+      const route = router.impl?.[p];
+
+      if (route === undefined) {
+        throw Error(`route not found: "${[...path, p].join('.')}"`);
+      }
+
+      if (route instanceof RouterInstance) {
+        router = route;
+        routers.push(route);
+        continue;
+      }
+
+      if (route instanceof ServiceInstance) {
+        service = route;
+        break;
+      }
+    }
+
+    if (service === undefined) {
+      throw Error(`service not found: "${originalPath.join('.')}"`);
+    }
+
+    if (service.impl === undefined) {
+      throw Error(`service not implemented: "${originalPath.join('.')}"`);
+    }
+
+    if (path.length !== 1) {
+      throw Error(`invalid route: "${originalPath.join('.')}"`);
+    }
+
+    const handlerName = path[0]!;
+    const handler = service.impl?.[handlerName];
+
+    if (handler === undefined) {
+      throw Error(`handler not implemented: "${originalPath.join('.')}"`);
+    }
+
+    return {
+      kind: 'handler',
+      routers,
+      service,
+      handler,
+    };
   }
 
   private decodeExpr(expr: Expr): unknown {
