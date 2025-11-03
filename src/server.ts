@@ -46,7 +46,7 @@ export function initServer<Context = unknown>(): ServerBuilder<Context> {
 }
 
 export class ServerBuilder<Context> {
-  private contextFactory?: (params: ContextParams) => Promise<Context>;
+  public contextFactory?: (params: ContextParams) => Promise<Context>;
 
   context<T>(
     callback: (params: ContextParams) => Promise<T>,
@@ -69,7 +69,10 @@ export class ServerBuilder<Context> {
   server<Routes extends AnyRouterApi>(
     config: ServerConfig<Context, Routes>,
   ): ServerInstance<Context, Routes> {
-    return new ServerInstance(config);
+    return new ServerInstance({
+      ...config,
+      context: this.contextFactory,
+    });
   }
 }
 

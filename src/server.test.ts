@@ -21,7 +21,9 @@ test('basic server', async () => {
   }
 
   const api = getApi();
-  const rq = initServer<Context>();
+  const rq = initServer().context<Context>(async ({ inject }) => {
+    return { inject };
+  });
 
   const foo = rq.service(api.foo).bind({
     async doSomethingFoo({ cx, input }) {

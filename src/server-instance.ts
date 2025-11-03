@@ -11,7 +11,7 @@ export type ContextFn<Context> = (params: ContextParams) => Promise<Context>;
 
 export interface ServerConfig<Context, Routes extends AnyRouterApi> {
   router: RouterInstance<Context, Routes>;
-  context: ContextFn<Context>;
+  context?: ContextFn<Context>;
 }
 
 export class ServerInstance<Context, Routes extends AnyRouterApi> {
@@ -52,6 +52,10 @@ export class ServerInstance<Context, Routes extends AnyRouterApi> {
   }
 
   async createContext(): Promise<Context> {
+    if (this.config.context === undefined) {
+      return undefined!;
+    }
+
     let cx: Context | undefined;
 
     const inject = <T extends AnyServiceApi>(api: T): InferServiceType<T> => {
