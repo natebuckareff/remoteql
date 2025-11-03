@@ -33,8 +33,12 @@ export type Handler<
   input: Input extends AnyCodec ? Input['Type'] : void;
 }) => Promise<Output extends AnyCodec ? Output['Type'] : void>;
 
+export type InjectFn = <T extends ServiceApi<HandlerApis>>(
+  api: T,
+) => InferServiceType<T>;
+
 export interface ContextParams {
-  inject: <T extends ServiceApi<HandlerApis>>(api: T) => InferServiceType<T>;
+  inject: InjectFn;
 }
 
 export function initServer<Context = unknown>(): ServerBuilder<Context> {
@@ -69,10 +73,21 @@ export class ServerBuilder<Context> {
   }
 }
 
+export type AnyRoute<Context> =
+  | RouterInstance<Context, AnyRouterApi>
+  | ServiceInstance<Context, AnyServiceApi>;
+
 export class RouterInstance<Context, Routes extends AnyRouterApi> {
   public impl?: InferRouter<Context, Routes>;
 
   constructor(public readonly routes: Routes) {}
+
+  *entries(): IterableIterator<[string, AnyRoute<Context>]> {
+    if (!this.impl) {
+      return;
+    }
+    yield* Object.entries(this.impl);
+  }
 
   bind<Impl extends InferRouter<Context, Routes>>(impl: Impl): this {
     this.impl = { ...this.impl, ...impl };

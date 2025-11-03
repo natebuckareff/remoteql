@@ -72,7 +72,7 @@ test('basic interpreter', async () => {
   builder.resolve(firstUser);
   builder.resolve(usersWithFriends);
 
-  const interpreter = Interpreter.create(router);
+  const interpreter = await Interpreter.create({}, router);
 
   const frame = builder.finish();
   const results = await interpreter.evaluate(frame);

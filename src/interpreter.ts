@@ -20,13 +20,19 @@ interface HandlerResolveResult {
   handler: Handler<any, any, any>;
 }
 
-export class Interpreter {
+export class Interpreter<Context> {
   private lastId?: number;
 
-  private constructor(private refs: Map<number, unknown>) {}
+  private constructor(
+    private context: Context,
+    private refs: Map<number, unknown>,
+  ) {}
 
-  static create(router: RouterInstance<any, any>): Interpreter {
-    const interpreter = new Interpreter(new Map());
+  static async create<Context>(
+    context: Context,
+    router: RouterInstance<Context, any>,
+  ): Promise<Interpreter<Context>> {
+    const interpreter = new Interpreter(context, new Map());
     const index = interpreter.refs.size;
     interpreter.refs.set(index, router);
     return interpreter;
@@ -76,17 +82,21 @@ export class Interpreter {
       case 'apply': {
         const [, target, argIds] = op;
         const result = this.resolveTarget(target);
-        if (result.kind !== 'handler') {
-          throw Error('target is not a service handler');
+        if (result.kind === 'handler') {
+          if (argIds.length > 1) {
+            throw Error('invalid number of handler arguments');
+          }
+          const argId = argIds[0];
+          const input = argId === undefined ? undefined : this.refs.get(argId);
+          const { handler } = result;
+          let output = handler({ cx: this.context, input });
+          if (isThenable(output)) {
+            output = await output;
+          }
+          this.setRef(id, output);
+        } else {
+          throw Error('target is not callable');
         }
-        const { handler } = result;
-        const args = argIds.map(id => this.refs.get(id));
-        const input = args.length === 1 ? args[0] : args; // XXX
-        let output = handler({ cx: {}, input }); // XXX
-        if (isThenable(output)) {
-          output = await output;
-        }
-        this.setRef(id, output);
         break;
       }
 
@@ -149,9 +159,9 @@ export class Interpreter {
     this.setRef(id, callback);
   }
 
-  private clone(): Interpreter {
+  private clone(): Interpreter<Context> {
     const refs = new Map(this.refs);
-    return new Interpreter(refs);
+    return new Interpreter(this.context, refs);
   }
 
   private setRef(id: number, value: unknown): void {
