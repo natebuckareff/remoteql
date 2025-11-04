@@ -2,14 +2,6 @@
 // biome-ignore-all lint/suspicious/noConfusingVoidType: used to match void return types
 // biome-ignore-all lint/complexity/noBannedTypes: used to match Function
 
-/** @internal */
-export const rpcImplSymbol: unique symbol = Symbol();
-
-// TODO: remove? replace?
-export class RpcImpl {
-  readonly [rpcImplSymbol]: true = true;
-}
-
 export type PlainPrimitive =
   | undefined
   | null
@@ -51,13 +43,11 @@ export type Rpc<T> = RpcPromiseMarker<T> &
         ? number extends T['length']
           ? RpcArray<T[number]>
           : RpcTuple<T>
-        : T extends RpcImpl
-          ? RpcClient<T>
-          : T extends object
-            ? RpcObject<T>
-            : void extends T
-              ? void
-              : never);
+        : T extends object
+          ? RpcObject<T>
+          : void extends T
+            ? void
+            : never);
 
 export type RpcFunction<Args extends any[], ReturnType> = (
   ...args: RpcParams<Args>
@@ -66,15 +56,6 @@ export type RpcFunction<Args extends any[], ReturnType> = (
 export type RpcParams<Params extends any[]> = {
   [K in keyof Params]: Params[K] | Rpc<Params[K]>;
 };
-
-export type RpcClient<T extends RpcImpl> = {
-  [K in keyof T]: T[K] extends (...args: infer Args) => infer ReturnType
-    ? RpcFunction<Args, ReturnType>
-    : never;
-};
-
-/** @internal */
-declare const rpcArraySymbol: unique symbol;
 
 export type RpcObject<T extends object> = Mappable<T> &
   (T extends Function | ReadonlyArray<any>
