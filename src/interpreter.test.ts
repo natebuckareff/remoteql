@@ -1,11 +1,11 @@
 import { tk } from 'typekind';
 import { expect, test } from 'vitest';
-import { InferRouterType, InferServiceType, initApi } from './api.js';
+import { InferRouterType, initApi } from './api.js';
 import { Interpreter } from './interpreter.js';
-import { createProxy } from './operation.js';
+import { createProxy, unwrapOperation } from './operation.js';
 import { PlanBuilder } from './plan-builder.js';
 import { Rpc } from './rpc-type.js';
-import { initServer, RouterInstance } from './server.js';
+import { initServer } from './server.js';
 
 test('basic interpreter', async () => {
   interface User {
@@ -72,9 +72,9 @@ test('basic interpreter', async () => {
     },
   }));
 
-  builder.resolve(me);
-  builder.resolve(firstUser);
-  builder.resolve(usersWithFriends);
+  builder.pushOutput(unwrapOperation(me)!);
+  builder.pushOutput(unwrapOperation(firstUser)!);
+  builder.pushOutput(unwrapOperation(usersWithFriends)!);
 
   const interpreter = await Interpreter.create({}, router);
 

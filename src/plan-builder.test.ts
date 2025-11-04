@@ -1,7 +1,7 @@
 import { tk } from 'typekind';
 import { expect, test } from 'vitest';
 import { initApi } from './api.js';
-import { createProxy } from './operation.js';
+import { createProxy, unwrapOperation } from './operation.js';
 import { PlanBuilder } from './plan-builder.js';
 
 test('basic plan', async () => {
@@ -32,10 +32,10 @@ test('basic plan', async () => {
     },
   }));
 
-  builder.resolve(me);
-  builder.resolve(firstUser);
-  builder.resolve(firstUserId);
-  builder.resolve(usersWithFriends);
+  builder.pushOutput(unwrapOperation(me)!);
+  builder.pushOutput(unwrapOperation(firstUser)!);
+  builder.pushOutput(unwrapOperation(firstUserId)!);
+  builder.pushOutput(unwrapOperation(usersWithFriends)!);
 
   const frame = builder.finish();
   expect(frame).toMatchSnapshot();

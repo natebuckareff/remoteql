@@ -88,7 +88,7 @@ export function createProxy<T extends object>(
                   .then(resolve)
                   .catch(reject);
               };
-              const { id } = builder.resolveV2(op);
+              const { id } = builder.pushOutput(op);
               batch.send(id, success, reject);
             });
           };

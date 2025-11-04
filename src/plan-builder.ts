@@ -8,8 +8,6 @@ import type {
   OpType,
   Target,
 } from './operation.js';
-import { unwrapOperation } from './operation.js';
-import { unwrap } from './util.js';
 
 interface DataCacheEntry {
   op: Operation;
@@ -166,29 +164,17 @@ export class PlanBuilder {
     return dataOp;
   }
 
-  // TODO: rename, this is confusing
-  resolve(value: unknown): Operation {
-    const op = unwrapOperation(value);
-    if (op === undefined) {
-      throw Error('not an operation');
-    }
+  pushOutput(op: Operation): Operation {
     const resolvedOp = this.resolveOp(op);
     this.outputs.push(resolvedOp.id);
     return resolvedOp;
   }
 
-  // TODO: rename, this is confusing
   resolveOp(op: Operation): Operation {
     if (op.type === 'get' && op.id === -1) {
       return this.pushOp(op);
     }
     return op;
-  }
-
-  resolveV2(op: Operation): Operation {
-    const resolvedOp = this.resolveOp(op);
-    this.outputs.push(resolvedOp.id);
-    return resolvedOp;
   }
 
   finish(): SerializedRootFrame {
