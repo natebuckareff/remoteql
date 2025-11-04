@@ -18,6 +18,9 @@
       "recommended": true,
       "style": {
         "noNonNullAssertion": "info"
+      },
+      "correctness": {
+        "noUnusedImports": "error"
       }
     },
     "includes": ["src/**/*.ts", "!src/**/*.test.ts"]
