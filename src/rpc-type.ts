@@ -5,6 +5,7 @@
 /** @internal */
 export const rpcImplSymbol: unique symbol = Symbol();
 
+// TODO: remove? replace?
 export class RpcImpl {
   readonly [rpcImplSymbol]: true = true;
 }
@@ -45,18 +46,18 @@ export type Rpc<T> = RpcPromiseMarker<T> &
   ([T] extends [PlainPrimitive]
     ? ConstrainPrimitive<T>
     : T extends (...args: infer Args) => infer ReturnType
-    ? RpcFunction<Args, ReturnType>
-    : T extends readonly [...any]
-    ? number extends T['length']
-    ? RpcArray<T[number]>
-    : RpcTuple<T>
-    : T extends RpcImpl
-    ? RpcClient<T>
-    : T extends object
-    ? RpcObject<T>
-    : void extends T
-    ? void
-    : never);
+      ? RpcFunction<Args, ReturnType>
+      : T extends readonly [...any]
+        ? number extends T['length']
+          ? RpcArray<T[number]>
+          : RpcTuple<T>
+        : T extends RpcImpl
+          ? RpcClient<T>
+          : T extends object
+            ? RpcObject<T>
+            : void extends T
+              ? void
+              : never);
 
 export type RpcFunction<Args extends any[], ReturnType> = (
   ...args: RpcParams<Args>
@@ -68,8 +69,8 @@ export type RpcParams<Params extends any[]> = {
 
 export type RpcClient<T extends RpcImpl> = {
   [K in keyof T]: T[K] extends (...args: infer Args) => infer ReturnType
-  ? RpcFunction<Args, ReturnType>
-  : never;
+    ? RpcFunction<Args, ReturnType>
+    : never;
 };
 
 /** @internal */

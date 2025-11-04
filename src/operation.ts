@@ -1,4 +1,5 @@
 import { createRef, type Json } from 'typekind';
+import type { BatchScheduler } from './batch.js';
 import type { PlanBuilder } from './plan-builder.js';
 
 const operationSymbol = Symbol('operation');
@@ -63,6 +64,7 @@ export function unwrapOperation(value: unknown): Operation | undefined {
 }
 
 export function createProxy<T extends object>(
+  batch: BatchScheduler<number, unknown>,
   builder: PlanBuilder,
   op: Operation,
 ): T {
@@ -77,20 +79,35 @@ export function createProxy<T extends object>(
           return op;
         }
 
+        if (p === 'then') {
+          return (callback: (reason: any) => any) => {
+            return new Promise((resolve, reject) => {
+              const success = (value: any) => {
+                return Promise.resolve()
+                  .then(() => callback(value))
+                  .then(resolve)
+                  .catch(reject);
+              };
+              const { id } = builder.resolveV2(op);
+              batch.send(id, success, reject);
+            });
+          };
+        }
+
         if (typeof p !== 'string') {
           throw Error('invalid property');
         }
 
         if (op.type === 'get') {
           const { id, path } = noramlizeTarget(op.target);
-          return createProxy(builder, {
+          return createProxy(batch, builder, {
             type: 'get',
             id: -1,
             target: [id, ...path, p],
           });
         }
 
-        return createProxy(builder, {
+        return createProxy(batch, builder, {
           type: 'get',
           id: -1,
           target: [op.id, p],
@@ -108,7 +125,7 @@ export function createProxy<T extends object>(
             const callbackId = builder.nest(() => {
               const fn = argArray[0];
               const param = builder.pushParam();
-              const arg = createProxy(builder, param);
+              const arg = createProxy(batch, builder, param);
               builder.pushOp({
                 type: 'expr',
                 id: -1,
@@ -123,7 +140,7 @@ export function createProxy<T extends object>(
               callback: callbackId,
             });
 
-            return createProxy(builder, mapOp);
+            return createProxy(batch, builder, mapOp);
           }
         }
 
@@ -151,7 +168,7 @@ export function createProxy<T extends object>(
           args: argIds,
         });
 
-        return createProxy(builder, applyOp);
+        return createProxy(batch, builder, applyOp);
       },
     },
     serialize: proxy => {

@@ -16,7 +16,7 @@ test('basic plan', async () => {
 
   const builder = new PlanBuilder();
   const root = builder.pushParam(api);
-  const rpc = createProxy<any>(builder, root);
+  const rpc = createProxy<any>({} as any, builder, root);
   const me = rpc.user.getUserById(42);
   const users = rpc.user.getUsers().map((user: any) => ({
     id: user.id,
@@ -62,7 +62,7 @@ test('kitchen sink test', () => {
 
   const builder = new PlanBuilder();
   const root = builder.pushParam(api);
-  const client = createProxy<any>(builder, root);
+  const client = createProxy<any>({} as any, builder, root);
 
   const now = 1762035193626;
 

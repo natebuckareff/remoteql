@@ -51,7 +51,11 @@ test('basic interpreter', async () => {
 
   const builder = new PlanBuilder();
   const root = builder.pushParam(api);
-  const rpc = createProxy<Rpc<InferRouterType<typeof api>>>(builder, root);
+  const rpc = createProxy<Rpc<InferRouterType<typeof api>>>(
+    {} as any,
+    builder,
+    root,
+  );
   const me = rpc.user.getUserById(3).map(user => ({
     id: user.id,
     name: user.name.map(name => ({
