@@ -123,3 +123,30 @@ test('forward error if resolve throws', async () => {
   expect(errors).toHaveLength(1);
   expect(errors[0].message).toBe('test');
 });
+
+test('basic streaming', async () => {
+  const scheduler = new BatchScheduler(async ({ streams }) => {
+    if (streams) {
+      await streams.resolveNext(1, 'value1');
+      await streams.resolveNext(1, 'value2');
+      await streams.resolveReturn(1, 'final');
+    }
+    return [];
+  });
+
+  const stream = scheduler.consume(1);
+
+  const values = [
+    await stream.next(),
+    await stream.next(),
+    await stream.next(),
+  ];
+
+  await new Promise(resolve => setTimeout(resolve, 0));
+
+  expect(values).toEqual([
+    { value: 'value1', done: false },
+    { value: 'value2', done: false },
+    { value: 'final', done: true },
+  ]);
+});

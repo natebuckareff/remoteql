@@ -92,6 +92,7 @@ export class BatchScheduler {
   }
 
   consume(id: number): AsyncGenerator<unknown, unknown> {
+    this._schedule();
     return this.sm.consume(id);
   }
 }
