@@ -6,6 +6,7 @@ import type {
   HandlerApis,
   InferServiceType,
   ServiceApi,
+  StreamApi,
 } from './api.js';
 import { type ServerConfig, ServerInstance } from './server-instance.js';
 
@@ -21,7 +22,9 @@ export type InferApi<Context, T extends AnyServiceApi> = {
     infer Output
   >
     ? Handler<Context, Input, Output>
-    : never;
+    : T['handlers'][K] extends StreamApi<infer Input, infer Value, infer Output>
+      ? Stream<Context, Input, Value, Output>
+      : never;
 };
 
 export type Handler<
@@ -32,6 +35,16 @@ export type Handler<
   cx: Context;
   input: Input extends AnyCodec ? Input['Type'] : void;
 }) => Promise<Output extends AnyCodec ? Output['Type'] : void>;
+
+export type Stream<
+  Context,
+  Input extends AnyCodec,
+  Value extends AnyCodec,
+  Output extends AnyCodec,
+> = (params: {
+  cx: Context;
+  input: Input extends AnyCodec ? Input['Type'] : void;
+}) => AsyncGenerator<Value['Type'], Output['Type'], void>;
 
 export type InjectFn = <T extends ServiceApi<HandlerApis>>(
   api: T,
