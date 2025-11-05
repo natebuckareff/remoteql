@@ -1,29 +1,29 @@
 import { Channel } from './channel.js';
 
 export class StreamManager<Yield, Return> {
-  private nextPhaseSeq: number = 0;
-  private phase?: Phase<Yield, Return>;
+  private nextSeq: number = 0;
+  private batch?: StreamBatch<Yield, Return>;
 
-  pop(): Phase<Yield, Return> | undefined {
-    const phase = this.phase;
-    this.phase = undefined;
-    return phase;
+  pop(): StreamBatch<Yield, Return> | undefined {
+    const batch = this.batch;
+    this.batch = undefined;
+    return batch;
   }
 
-  private getCurrentPhase(): Phase<Yield, Return> {
-    if (this.phase === undefined) {
-      this.phase = new Phase(this.nextPhaseSeq++, new Map());
+  private getCurrentBatch(): StreamBatch<Yield, Return> {
+    if (this.batch === undefined) {
+      this.batch = new StreamBatch(this.nextSeq++, new Map());
     }
-    return this.phase;
+    return this.batch;
   }
 
   consume(id: number): AsyncGenerator<Yield, Return> {
-    const phase = this.getCurrentPhase();
-    return phase.consume(id);
+    const batch = this.getCurrentBatch();
+    return batch.consume(id);
   }
 }
 
-export class Phase<Yield, Return> {
+export class StreamBatch<Yield, Return> {
   constructor(
     public readonly seq: number,
     public readonly requests: Map<number, Channel<Yield, Return>>,
@@ -61,7 +61,7 @@ export class Phase<Yield, Return> {
   consume(id: number): AsyncGenerator<Yield, Return> {
     if (this.requests.has(id)) {
       throw Error(
-        `consumer already exists in phase: seq=${this.seq}, id=${id}`,
+        `consumer already exists in batch: seq=${this.seq}, id=${id}`,
       );
     }
     const channel = new Channel<Yield, Return>();

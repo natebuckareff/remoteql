@@ -64,10 +64,12 @@ export function unwrapOperation(value: unknown): Operation | undefined {
 }
 
 export function createProxy<T extends object>(
-  batch: BatchScheduler<number, unknown>,
+  batch: BatchScheduler,
   builder: PlanBuilder,
   op: Operation,
 ): T {
+  let cachedPromise: Promise<unknown> | undefined;
+
   return createRef(op.id, {
     handler: {
       has(_target, p) {
@@ -80,17 +82,13 @@ export function createProxy<T extends object>(
         }
 
         if (p === 'then') {
-          return (callback: (reason: any) => any) => {
-            return new Promise((resolve, reject) => {
-              const success = (value: any) => {
-                return Promise.resolve()
-                  .then(() => callback(value))
-                  .then(resolve)
-                  .catch(reject);
-              };
-              const { id } = builder.pushOutput(op);
-              batch.send(id, success, reject);
-            });
+          if (!cachedPromise) {
+            const { id } = builder.pushOutput(op);
+            cachedPromise = batch.resolve(id);
+          }
+          return cachedPromise.then.bind(cachedPromise);
+        }
+
           };
         }
 

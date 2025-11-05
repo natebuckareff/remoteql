@@ -5,53 +5,41 @@ test('calls are batched', async () => {
   let batch = 0;
   const events: any[] = [];
 
-  const scheduler = new BatchScheduler<string>(async inputs => {
-    events.push(...inputs.map(input => ({ t: 'request', batch, input })));
+  const scheduler = new BatchScheduler(async ({ resolved }) => {
+    events.push(...resolved.map(id => ({ t: 'request', batch, id })));
     batch += 1;
-    return inputs;
+    return resolved;
   });
 
-  scheduler.send(
-    'first',
-    value => {
-      events.push({ t: 'resolve', value });
-      return value;
-    },
-    () => {},
-  );
+  scheduler.resolve(1).then(id => {
+    events.push({ t: 'resolve', id });
+    return id;
+  });
 
-  scheduler.send(
-    'second',
-    value => {
-      events.push({ t: 'resolve', value });
-      return value;
-    },
-    () => {},
-  );
+  scheduler.resolve(2).then(id => {
+    events.push({ t: 'resolve', id });
+    return id;
+  });
 
   await new Promise(resolve => setTimeout(resolve, 0));
 
-  scheduler.send(
-    'third',
-    value => {
-      events.push({ t: 'resolve', value });
-      return value;
-    },
-    () => {},
-  );
+  scheduler.resolve(3).then(id => {
+    events.push({ t: 'resolve', id });
+    return id;
+  });
 
   await new Promise(resolve => setTimeout(resolve, 0));
 
   expect(events).toEqual([
     // first batch
-    { t: 'request', batch: 0, input: 'first' },
-    { t: 'request', batch: 0, input: 'second' },
-    { t: 'resolve', value: 'first' },
-    { t: 'resolve', value: 'second' },
+    { t: 'request', batch: 0, id: 1 },
+    { t: 'request', batch: 0, id: 2 },
+    { t: 'resolve', id: 1 },
+    { t: 'resolve', id: 2 },
 
     // second batch
-    { t: 'request', batch: 1, input: 'third' },
-    { t: 'resolve', value: 'third' },
+    { t: 'request', batch: 1, id: 3 },
+    { t: 'resolve', id: 3 },
   ]);
 });
 
@@ -59,39 +47,27 @@ test('nested batches are automatically scheduled', async () => {
   let batch = 0;
   const events: any[] = [];
 
-  const scheduler = new BatchScheduler<string>(async inputs => {
-    events.push(...inputs.map(input => ({ t: 'request', batch, input })));
+  const scheduler = new BatchScheduler(async ({ resolved }) => {
+    events.push(...resolved.map(id => ({ t: 'request', batch, id })));
     batch += 1;
-    return inputs;
+    return resolved;
   });
 
-  scheduler.send(
-    'first',
-    value => {
-      events.push({ t: 'resolve', value });
-      return value;
-    },
-    () => {},
-  );
+  scheduler.resolve(1).then(id => {
+    events.push({ t: 'resolve', id });
+    return id;
+  });
 
-  scheduler.send(
-    'second',
-    value => {
-      events.push({ t: 'resolve', value });
+  scheduler.resolve(2).then(id => {
+    events.push({ t: 'resolve', id });
 
-      scheduler.send(
-        'third',
-        value => {
-          events.push({ t: 'resolve', value });
-          return value;
-        },
-        () => {},
-      );
+    scheduler.resolve(3).then(id => {
+      events.push({ t: 'resolve', id });
+      return id;
+    });
 
-      return value;
-    },
-    () => {},
-  );
+    return id;
+  });
 
   // await first batch
   await new Promise(resolve => setTimeout(resolve, 0));
@@ -101,33 +77,26 @@ test('nested batches are automatically scheduled', async () => {
 
   expect(events).toEqual([
     // first batch
-    { t: 'request', batch: 0, input: 'first' },
-    { t: 'request', batch: 0, input: 'second' },
-    { t: 'resolve', value: 'first' },
-    { t: 'resolve', value: 'second' },
+    { t: 'request', batch: 0, id: 1 },
+    { t: 'request', batch: 0, id: 2 },
+    { t: 'resolve', id: 1 },
+    { t: 'resolve', id: 2 },
 
     // second batch
-    { t: 'request', batch: 1, input: 'third' },
-    { t: 'resolve', value: 'third' },
+    { t: 'request', batch: 1, id: 3 },
+    { t: 'resolve', id: 3 },
   ]);
 });
 
 test('throws when request returns more results than inputs', async () => {
-  const scheduler = new BatchScheduler<string>(async inputs => {
-    return [...inputs, 'extra'];
+  const scheduler = new BatchScheduler(async ({ resolved }) => {
+    return [...resolved, 'extra'];
   });
 
   const errors: any[] = [];
-  scheduler.send(
-    'first',
-    () => {},
-    error => errors.push(error),
-  );
-  scheduler.send(
-    'second',
-    () => {},
-    error => errors.push(error),
-  );
+
+  scheduler.resolve(1).catch(error => errors.push(error));
+  scheduler.resolve(2).catch(error => errors.push(error));
 
   await new Promise(resolve => setTimeout(resolve, 0));
 
@@ -137,18 +106,17 @@ test('throws when request returns more results than inputs', async () => {
 });
 
 test('forward error if resolve throws', async () => {
-  const scheduler = new BatchScheduler<string>(async inputs => {
-    return inputs;
+  const scheduler = new BatchScheduler(async ({ resolved }) => {
+    return resolved;
   });
 
   const errors: any[] = [];
-  scheduler.send(
-    'first',
-    () => {
+  scheduler
+    .resolve(1)
+    .then(() => {
       throw new Error('test');
-    },
-    error => errors.push(error),
-  );
+    })
+    .catch(error => errors.push(error));
 
   await new Promise(resolve => setTimeout(resolve, 0));
 
