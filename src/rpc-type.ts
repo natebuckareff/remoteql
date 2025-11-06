@@ -37,17 +37,21 @@ export type RpcPromiseMarker<T> = {
 export type Rpc<T> = RpcPromiseMarker<T> &
   ([T] extends [PlainPrimitive]
     ? ConstrainPrimitive<T>
-    : T extends (...args: infer Args) => infer ReturnType
-      ? RpcFunction<Args, ReturnType>
-      : T extends readonly [...any]
-        ? number extends T['length']
-          ? RpcArray<T[number]>
-          : RpcTuple<T>
-        : T extends object
-          ? RpcObject<T>
-          : void extends T
-            ? void
-            : never);
+    : T extends AsyncGenerator<infer Yield, infer Return, any>
+      ? AsyncGenerator<Yield, Return, void> // NEW: Preserve async generator
+      : T extends AsyncIterable<infer Yield>
+        ? AsyncIterable<Yield> // NEW: Preserve async iterable
+        : T extends (...args: infer Args) => infer ReturnType
+          ? RpcFunction<Args, ReturnType>
+          : T extends readonly [...any]
+            ? number extends T['length']
+              ? RpcArray<T[number]>
+              : RpcTuple<T>
+            : T extends object
+              ? RpcObject<T>
+              : void extends T
+                ? void
+                : never);
 
 export type RpcFunction<Args extends any[], ReturnType> = (
   ...args: RpcParams<Args>

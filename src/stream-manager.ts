@@ -1,4 +1,5 @@
 import { Channel } from './channel.js';
+import type { StreamMessage } from './server-instance.js';
 
 export class StreamManager<Yield, Return> {
   private nextSeq: number = 0;
@@ -43,17 +44,30 @@ export class StreamBatch<Yield, Return> {
     return channel;
   }
 
-  resolveNext(id: number, value: Yield): Promise<void> {
+  push(msg: StreamMessage<Yield, Return>): Promise<void> {
+    switch (msg.type) {
+      case 'next':
+        return this.resolveNext(msg.id, msg.value);
+
+      case 'return':
+        return this.resolveReturn(msg.id, msg.value);
+
+      case 'error':
+        return this.reject(msg.id, msg.error);
+    }
+  }
+
+  private resolveNext(id: number, value: Yield): Promise<void> {
     const channel = this.getChannel(id);
     return channel.push(value);
   }
 
-  resolveReturn(id: number, value: Return): Promise<void> {
+  private resolveReturn(id: number, value: Return): Promise<void> {
     const channel = this.getChannel(id);
     return channel.pushAndClose(value);
   }
 
-  reject(id: number, error: unknown): Promise<void> {
+  private reject(id: number, error: unknown): Promise<void> {
     const channel = this.getChannel(id);
     return channel.abort(error);
   }

@@ -21,6 +21,9 @@
       },
       "correctness": {
         "noUnusedImports": "error"
+      },
+      "nursery": {
+        "noFloatingPromises": "error"
       }
     },
     "includes": ["src/**/*.ts", "!src/**/*.test.ts"]

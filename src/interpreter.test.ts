@@ -79,6 +79,18 @@ test('basic interpreter', async () => {
   const interpreter = await Interpreter.create({}, router);
 
   const frame = builder.finish();
-  const results = await interpreter.evaluate(frame);
-  expect(results).toMatchSnapshot();
+  const response = interpreter.evaluate(frame);
+  const results: any[] = [];
+  let returned: any;
+  while (true) {
+    const result = await response.next();
+    if (result.done) {
+      returned = result.value;
+      break;
+    }
+    results.push(result.value);
+  }
+
+  expect(results).toEqual([]);
+  expect(returned).toMatchSnapshot();
 });

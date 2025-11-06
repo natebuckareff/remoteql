@@ -67,8 +67,11 @@ export function createProxy<T extends object>(
   batch: BatchScheduler,
   builder: PlanBuilder,
   op: Operation,
+  // TODO: more general purpose mechanism for accumulated metadata?
+  info?: { isStream?: boolean },
 ): T {
   let cachedPromise: Promise<unknown> | undefined;
+  let cachedGenerator: AsyncGenerator<unknown, unknown> | undefined;
 
   return createRef(op.id, {
     handler: {
@@ -89,7 +92,22 @@ export function createProxy<T extends object>(
           return cachedPromise.then.bind(cachedPromise);
         }
 
-          };
+        if (info?.isStream) {
+          if (p === Symbol.asyncIterator) {
+            if (!cachedGenerator) {
+              const { id } = builder.pushStream(op);
+              cachedGenerator = batch.consume(id);
+            }
+            return () => cachedGenerator;
+          }
+
+          if (p === 'next' || p === 'return' || p === 'throw') {
+            if (!cachedGenerator) {
+              const { id } = builder.pushStream(op);
+              cachedGenerator = batch.consume(id);
+            }
+            return cachedGenerator[p].bind(cachedGenerator);
+          }
         }
 
         if (typeof p !== 'string') {
@@ -142,6 +160,7 @@ export function createProxy<T extends object>(
           }
         }
 
+        const handler = builder.getHandler(target);
         const argIds: number[] = [];
 
         for (let i = 0; i < argArray.length; i++) {
@@ -150,7 +169,7 @@ export function createProxy<T extends object>(
             const argOp = builder.resolveOp(arg[operationSymbol]);
             argIds.push(argOp.id);
           } else {
-            const codec = builder.getParamCodec(target, i);
+            const codec = builder.getParamCodec(handler, i);
             if (codec === undefined) {
               throw Error('handler argument index out of bounds');
             }
@@ -166,7 +185,9 @@ export function createProxy<T extends object>(
           args: argIds,
         });
 
-        return createProxy(batch, builder, applyOp);
+        const info = { isStream: handler.kind === 'stream' };
+
+        return createProxy(batch, builder, applyOp, info);
       },
     },
     serialize: proxy => {

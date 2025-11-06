@@ -1,6 +1,13 @@
 import type { AnyCodec } from 'typekind';
 import { TupleCodec } from 'typekind';
-import { type AnyRouterApi, type AnyServiceApi, RouterApi } from './api.js';
+import type {
+  AnyHandlerApi,
+  AnyRouterApi,
+  AnyServiceApi,
+  AnyStreamApi,
+} from './api.js';
+import { RouterApi } from './api.js';
+
 import { Frame, type SerializedFrame } from './frame.js';
 import type {
   NormalizedTarget,
@@ -14,8 +21,10 @@ interface DataCacheEntry {
   codec: AnyCodec;
 }
 
+// TODO: better name; should probably just be called `Plan`
 export interface SerializedRootFrame extends SerializedFrame {
   outputs: number[];
+  streams: number[];
 }
 
 export class PlanBuilder {
@@ -24,6 +33,7 @@ export class PlanBuilder {
   private stack: Frame[] = [];
   private bindings: Map<number, AnyRouterApi> = new Map();
   private outputs: number[] = [];
+  private streams: number[] = [];
 
   constructor() {
     this.stack.push(new Frame());
@@ -46,10 +56,11 @@ export class PlanBuilder {
     return binding;
   }
 
-  getParamCodec(target: NormalizedTarget, index: number) {
+  getHandler(target: NormalizedTarget): AnyHandlerApi | AnyStreamApi {
     let router = this.getParamBinding(target.id);
     let service: AnyServiceApi | undefined;
     const path: string[] = [...target.path];
+
     while (true) {
       const p = path.shift();
       if (p === undefined) {
@@ -86,6 +97,10 @@ export class PlanBuilder {
       throw Error(`handler not found: "${target.path.join('.')}"`);
     }
 
+    return handler;
+  }
+
+  getParamCodec(handler: AnyHandlerApi | AnyStreamApi, index: number) {
     const inputCodec = handler.input;
 
     if (inputCodec instanceof TupleCodec) {
@@ -170,6 +185,12 @@ export class PlanBuilder {
     return resolvedOp;
   }
 
+  pushStream(op: Operation): Operation {
+    const resolvedOp = this.resolveOp(op);
+    this.streams.push(resolvedOp.id);
+    return resolvedOp;
+  }
+
   resolveOp(op: Operation): Operation {
     if (op.type === 'get' && op.id === -1) {
       return this.pushOp(op);
@@ -191,6 +212,7 @@ export class PlanBuilder {
     return {
       ...frame.serialize(),
       outputs: this.outputs,
+      streams: this.streams,
     };
   }
 }

@@ -3,6 +3,7 @@ import { BatchScheduler } from './batch.js';
 import { createProxy } from './operation.js';
 import { PlanBuilder, type SerializedRootFrame } from './plan-builder.js';
 import type { Rpc } from './rpc-type.js';
+import type { ServerResponse } from './server-instance.js';
 
 export interface ClientConfig<Routes extends AnyRouterApi> {
   router: Routes;
@@ -10,12 +11,20 @@ export interface ClientConfig<Routes extends AnyRouterApi> {
 }
 
 export interface Transport {
-  send(plan: SerializedRootFrame): Promise<unknown[]>;
+  send(plan: SerializedRootFrame): ServerResponse<unknown, unknown>;
 }
 
 export class Client<Routes extends AnyRouterApi> {
-  private batch: BatchScheduler<number, unknown>;
+  private batch: BatchScheduler;
   private proxy!: Rpc<InferRouterType<Routes>>; // initializd by reset()
+
+  // TODO: how to handle this case:
+  // ```
+  // const x = client.api.foo()
+  // const stream = client.api.stream()
+  // for await (const v of stream) { .. } // <-- batch finished here!
+  // console.log(await x) // <-- this will fail!
+  // ```
 
   constructor(public readonly config: ClientConfig<Routes>) {
     let builder = new PlanBuilder();
@@ -30,19 +39,12 @@ export class Client<Routes extends AnyRouterApi> {
       );
     };
 
-    this.batch = new BatchScheduler(async inputs => {
+    this.batch = new BatchScheduler(async () => {
       const plan = builder.finish();
 
       reset();
 
-      const results = await this.config.transport.send(plan);
-
-      const orderedResults = inputs.map(id => {
-        const index = plan.outputs.indexOf(id);
-        return results[index];
-      });
-
-      return orderedResults;
+      return this.config.transport.send(plan);
     });
 
     reset();

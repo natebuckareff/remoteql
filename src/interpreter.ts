@@ -1,9 +1,11 @@
+import { parallelMerge } from 'streaming-iterables';
 import type { AnyRouterApi } from './api.js';
 import type { SerializedFrame, SerializedOp } from './frame.js';
 import { type Expr, noramlizeTarget, type Target } from './operation.js';
 import type { SerializedRootFrame } from './plan-builder.js';
-import type { Handler } from './server.js';
+import type { Handler, Stream } from './server.js';
 import { RouterInstance, ServiceInstance } from './server.js';
+import type { ServerResponse, StreamMessage } from './server-instance.js';
 import { isThenable } from './util.js';
 
 type ResolveResult = ValueResolveResult | HandlerResolveResult;
@@ -17,7 +19,20 @@ interface HandlerResolveResult {
   kind: 'handler';
   routers: RouterInstance<any, any>[];
   service: ServiceInstance<any, any>;
-  handler: Handler<any, any, any>;
+  handler: Handler<any, any, any> | Stream<any, any, any, any>;
+}
+
+// TODO: consider type tagging this.ref values
+function isAsyncGenerator(
+  value: unknown,
+): value is AsyncGenerator<unknown, unknown, unknown> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as any)[Symbol.asyncIterator] === 'function' &&
+    'next' in value &&
+    typeof value.next === 'function'
+  );
 }
 
 export class Interpreter<Context> {
@@ -38,12 +53,48 @@ export class Interpreter<Context> {
     return interpreter;
   }
 
-  async evaluate(frame: SerializedRootFrame): Promise<unknown[]> {
+  async *evaluate(
+    frame: SerializedRootFrame,
+  ): ServerResponse<unknown, unknown> {
     if (frame.params.length !== this.refs.size) {
       throw Error('invalid number of bindings');
     }
 
     await this.evaluateFrame(frame);
+
+    const generators = frame.streams.map(id => {
+      // TODO: safer ref handling
+      const generator = this.refs.get(id);
+      if (generator === undefined) {
+        throw Error(`stream not found: ${id}`);
+      }
+
+      async function* transformed(): AsyncGenerator<
+        StreamMessage<unknown, unknown>
+      > {
+        // TODO: error handling and evaluate semantics
+        if (!isAsyncGenerator(generator)) {
+          throw Error(`stream is not an AsyncGenerator: ${id}`);
+        }
+
+        try {
+          while (true) {
+            const result = await generator.next();
+            if (result.done) {
+              yield { type: 'return', id: id, value: result.value };
+              break;
+            }
+            yield { type: 'next', id: id, value: result.value };
+          }
+        } catch (error) {
+          yield { type: 'error', id: id, error };
+        }
+      }
+
+      return transformed();
+    });
+
+    yield* parallelMerge(...generators);
 
     return frame.outputs.map(id => this.refs.get(id));
   }
@@ -112,7 +163,19 @@ export class Interpreter<Context> {
         }
         const { value: mappable } = result;
         let output: unknown;
-        if (Array.isArray(mappable)) {
+
+        if (isAsyncGenerator(mappable)) {
+          const transformed = async function* () {
+            while (true) {
+              const result = await mappable.next();
+              if (result.done) {
+                return result.value;
+              }
+              yield await callback(result.value);
+            }
+          };
+          output = transformed();
+        } else if (Array.isArray(mappable)) {
           const promises = mappable.map(async (value, index) => {
             return callback(value, index, mappable);
           });
@@ -266,7 +329,7 @@ export class Interpreter<Context> {
         return undefined;
       } else {
         const [array] = expr;
-        return array.map(this.decodeExpr);
+        return array.map(e => this.decodeExpr(e));
       }
     } else if (typeof expr === 'object') {
       if (expr === null) {

@@ -1,5 +1,6 @@
 import assert from 'node:assert';
-import { type StreamBatch, StreamManager } from './stream-manager.js';
+import type { ServerResponse } from './server-instance.js';
+import { StreamManager } from './stream-manager.js';
 
 interface Call<Input, Output> {
   id: Input;
@@ -8,13 +9,7 @@ interface Call<Input, Output> {
 }
 
 export type Callback<T = unknown> = (value: T) => void;
-
-export type RequestFn = (params: RequestParams) => Promise<unknown[]>;
-
-export interface RequestParams {
-  resolved: number[];
-  streams?: StreamBatch<unknown, unknown>;
-}
+export type RequestFn = () => Promise<ServerResponse<unknown, unknown>>;
 
 export class BatchScheduler {
   private sm: StreamManager<unknown, unknown> = new StreamManager();
@@ -42,18 +37,31 @@ export class BatchScheduler {
       this.calls = [];
 
       const streams = this.sm.pop();
+      const response = await this.request();
 
-      // biome-ignore lint/style/noNonNullAssertion: calls always set before this
-      const resolved = calls.map(call => call!.id);
+      let outputs: unknown[] | undefined;
 
-      const results = await this.request({ resolved, streams });
+      while (true) {
+        const result = await response.next();
 
-      if (results.length !== calls.length) {
+        if (result.done === true) {
+          outputs = result.value;
+          break;
+        }
+
+        if (streams) {
+          await streams.push(result.value);
+        }
+      }
+
+      outputs ??= [];
+
+      if (outputs.length !== calls.length) {
         throw Error('request returned more results than inputs');
       }
 
-      for (let i = 0; i < results.length; ++i) {
-        const result = results[i]!;
+      for (let i = 0; i < outputs.length; ++i) {
+        const result = outputs[i]!;
 
         // biome-ignore lint/style/noNonNullAssertion: always set to nul _after_
         const current = calls[i]!;
