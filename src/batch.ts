@@ -1,18 +1,22 @@
 import assert from 'node:assert';
+import type { ServerResponse } from './server-instance.js';
+import { StreamManager } from './stream-manager.js';
 
 interface Call<Input, Output> {
-  input: Input;
+  id: Input;
   resolve: Callback<Output>;
   reject: Callback;
 }
 
 export type Callback<T = unknown> = (value: T) => void;
+export type RequestFn = () => Promise<ServerResponse<unknown, unknown>>;
 
-export class BatchScheduler<Input, Output = Input> {
-  private calls: Call<Input, Output>[] = [];
+export class BatchScheduler {
+  private sm: StreamManager<unknown, unknown> = new StreamManager();
+  private calls: Call<number, unknown>[] = [];
   private promise?: Promise<void>;
 
-  constructor(private request: (inputs: Input[]) => Promise<Output[]>) {}
+  constructor(private request: RequestFn) {}
 
   private _schedule(): void {
     if (this.promise) {
@@ -22,7 +26,7 @@ export class BatchScheduler<Input, Output = Input> {
   }
 
   private async _scheduleAsync(): Promise<void> {
-    let calls: (Call<Input, Output> | null)[] | undefined;
+    let calls: (Call<number, unknown> | null)[] | undefined;
 
     try {
       // wait until after the current tick, allowing all awaits to batch
@@ -32,16 +36,32 @@ export class BatchScheduler<Input, Output = Input> {
       calls = this.calls;
       this.calls = [];
 
-      // biome-ignore lint/style/noNonNullAssertion: calls always set before this
-      const inputs = calls.map(call => call!.input);
-      const results = await this.request(inputs);
+      const streams = this.sm.pop();
+      const response = await this.request();
 
-      if (results.length !== calls.length) {
+      let outputs: unknown[] | undefined;
+
+      while (true) {
+        const result = await response.next();
+
+        if (result.done === true) {
+          outputs = result.value;
+          break;
+        }
+
+        if (streams) {
+          await streams.push(result.value);
+        }
+      }
+
+      outputs ??= [];
+
+      if (outputs.length !== calls.length) {
         throw Error('request returned more results than inputs');
       }
 
-      for (let i = 0; i < results.length; ++i) {
-        const result = results[i]!;
+      for (let i = 0; i < outputs.length; ++i) {
+        const result = outputs[i]!;
 
         // biome-ignore lint/style/noNonNullAssertion: always set to nul _after_
         const current = calls[i]!;
@@ -72,8 +92,15 @@ export class BatchScheduler<Input, Output = Input> {
     }
   }
 
-  send(input: Input, resolve: Callback<Output>, reject: Callback): void {
+  async resolve(id: number): Promise<unknown> {
+    return new Promise((resolve, reject) => {
+      this._schedule();
+      this.calls.push({ id, resolve, reject });
+    });
+  }
+
+  consume(id: number): AsyncGenerator<unknown, unknown> {
     this._schedule();
-    this.calls.push({ input, resolve, reject });
+    return this.sm.consume(id);
   }
 }

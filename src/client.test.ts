@@ -48,9 +48,7 @@ test('simple e2e', async () => {
   const client = new Client({
     router: api.router,
     transport: {
-      send: async plan => {
-        return server.evaluate(plan);
-      },
+      send: plan => server.evaluate(plan),
     },
   });
 
@@ -58,4 +56,61 @@ test('simple e2e', async () => {
   const secondUser = client.api.user.getUserById(2);
   const results = await Promise.all([firstUser, secondUser]);
   expect(results).toEqual([db[0], db[1]]);
+});
+
+test('simple streaming', async () => {
+  const getApi = () => {
+    const rq = initApi();
+    const user = rq.api({
+      handler: rq.handler(tk.number(), tk.number()),
+      sequence: rq.stream(tk.number(), tk.number(), tk.string()),
+    });
+    const router = rq.router({ user });
+    return { router, user };
+  };
+
+  const api = getApi();
+
+  const getServer = () => {
+    const rq = initServer();
+    const userService = rq.service(api.user).bind({
+      async handler({ input: id }) {
+        return id;
+      },
+
+      async *sequence({ input: id }) {
+        yield id;
+        yield 1;
+        yield 2;
+        yield 3;
+        return 'done';
+      },
+    });
+    const router = rq.router(api.router).bind({ user: userService });
+    return rq.server({ router });
+  };
+
+  const server = getServer();
+
+  const client = new Client({
+    router: api.router,
+    transport: {
+      send: plan => server.evaluate(plan),
+    },
+  });
+
+  const stream = client.api.user.sequence(1000);
+
+  const yielded: any[] = [];
+
+  while (true) {
+    const result = await stream.next();
+    if (result.done) {
+      expect(result.value).toEqual('done');
+      break;
+    }
+    yielded.push(result.value);
+  }
+
+  expect(yielded).toEqual([1000, 1, 2, 3]);
 });

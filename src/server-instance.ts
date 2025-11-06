@@ -14,6 +14,16 @@ export interface ServerConfig<Context, Routes extends AnyRouterApi> {
   context?: ContextFn<Context>;
 }
 
+export type StreamMessage<Yield, Return> =
+  | { type: 'next'; id: number; value: Yield }
+  | { type: 'return'; id: number; value: Return }
+  | { type: 'error'; id: number; error: unknown };
+
+export type ServerResponse<Yield, Return> = AsyncGenerator<
+  StreamMessage<Yield, Return>,
+  unknown[]
+>;
+
 export class ServerInstance<Context, Routes extends AnyRouterApi> {
   constructor(public readonly config: ServerConfig<Context, Routes>) {}
 
@@ -76,9 +86,21 @@ export class ServerInstance<Context, Routes extends AnyRouterApi> {
     return cx;
   }
 
-  async evaluate(frame: SerializedRootFrame): Promise<unknown[]> {
+  async *evaluate(
+    frame: SerializedRootFrame,
+  ): ServerResponse<unknown, unknown> {
     const context = await this.createContext();
     const interpreter = await Interpreter.create(context, this.config.router);
-    return interpreter.evaluate(frame);
+
+    const generator = interpreter.evaluate(frame);
+
+    // TODO: keep using this general pattern, is it ok or should abstract it?
+    while (true) {
+      const result = await generator.next();
+      if (result.done) {
+        return result.value;
+      }
+      yield result.value;
+    }
   }
 }

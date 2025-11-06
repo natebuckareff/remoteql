@@ -17,6 +17,7 @@
     "vitest": "^4.0.3"
   },
   "dependencies": {
+    "streaming-iterables": "^8.0.1",
     "typekind": "^0.0.16"
   }
 }
