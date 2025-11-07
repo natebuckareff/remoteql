@@ -53,6 +53,18 @@ export type Rpc<T> = RpcPromiseMarker<T> &
                 ? void
                 : never);
 
+export namespace Rpc {
+  export function resolve<T>(value: Rpc<T>): Promise<T> {
+    return Promise.resolve(value) as Promise<T>;
+  }
+
+  export function consume<T, TReturn>(
+    value: Rpc<AsyncGenerator<T, TReturn>>,
+  ): AsyncGenerator<T, TReturn> {
+    return value[Symbol.asyncIterator]();
+  }
+}
+
 export type RpcFunction<Args extends any[], ReturnType> = (
   ...args: RpcParams<Args>
 ) => Rpc<Awaited<ReturnType>>;
