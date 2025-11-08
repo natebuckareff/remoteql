@@ -2,6 +2,7 @@ import { tk } from 'typekind';
 import { expect, test } from 'vitest';
 import { initApi } from './api.js';
 import { Client } from './client.js';
+import { Rpc } from './rpc-type.js';
 import { initServer } from './server.js';
 
 test('simple e2e', async () => {
@@ -100,6 +101,7 @@ test('simple streaming', async () => {
   });
 
   const stream = client.api.user.sequence(1000);
+  const value = Rpc.resolve(client.api.user.handler(5000));
 
   const yielded: any[] = [];
 
@@ -112,5 +114,6 @@ test('simple streaming', async () => {
     yielded.push(result.value);
   }
 
+  expect(await value);
   expect(yielded).toEqual([1000, 1, 2, 3]);
 });

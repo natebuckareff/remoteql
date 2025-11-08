@@ -18,14 +18,6 @@ export class Client<Routes extends AnyRouterApi> {
   private batch: BatchScheduler;
   private proxy!: Rpc<InferRouterType<Routes>>; // initializd by reset()
 
-  // TODO: how to handle this case:
-  // ```
-  // const x = client.api.foo()
-  // const stream = client.api.stream()
-  // for await (const v of stream) { .. } // <-- batch finished here!
-  // console.log(await x) // <-- this will fail!
-  // ```
-
   constructor(public readonly config: ClientConfig<Routes>) {
     let builder = new PlanBuilder();
 
