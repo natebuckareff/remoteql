@@ -1,8 +1,12 @@
 import { parallelMerge } from 'streaming-iterables';
 import type { AnyRouterApi } from './api.js';
-import type { SerializedFrame, SerializedOp } from './frame.js';
+import type {
+  SerializedFrame,
+  SerializedOp,
+  SerializedOpMap,
+} from './frame.js';
 import { type Expr, noramlizeTarget, type Target } from './operation.js';
-import type { SerializedRootFrame } from './plan-builder.js';
+import type { SerializedPlan } from './plan-builder.js';
 import type { Handler, Stream } from './server.js';
 import { RouterInstance, ServiceInstance } from './server.js';
 import type { ServerResponse, StreamMessage } from './server-instance.js';
@@ -48,19 +52,12 @@ export class Interpreter<Context> {
     router: RouterInstance<Context, any>,
   ): Promise<Interpreter<Context>> {
     const interpreter = new Interpreter(context, new Map());
-    const index = interpreter.refs.size;
-    interpreter.refs.set(index, router);
+    interpreter.refs.set(0, router);
     return interpreter;
   }
 
-  async *evaluate(
-    frame: SerializedRootFrame,
-  ): ServerResponse<unknown, unknown> {
-    if (frame.params.length !== this.refs.size) {
-      throw Error('invalid number of bindings');
-    }
-
-    await this.evaluateFrame(frame);
+  async *evaluate(frame: SerializedPlan): ServerResponse<unknown, unknown> {
+    await this.evaluateFrame(frame.ops);
 
     const generators = frame.streams.map(id => {
       // TODO: safer ref handling
@@ -99,8 +96,8 @@ export class Interpreter<Context> {
     return frame.outputs.map(id => this.refs.get(id));
   }
 
-  private async evaluateFrame(frame: SerializedFrame): Promise<void> {
-    for (const [key, opOrFrame] of Object.entries(frame.ops)) {
+  private async evaluateFrame(ops: SerializedOpMap): Promise<void> {
+    for (const [key, opOrFrame] of Object.entries(ops)) {
       const id = Number(key);
 
       if (Array.isArray(opOrFrame)) {
@@ -210,7 +207,7 @@ export class Interpreter<Context> {
         state.setRef(argIndex, argValue);
       }
 
-      await state.evaluateFrame(frame);
+      await state.evaluateFrame(frame.ops);
 
       if (state.lastId === undefined) {
         throw Error('no ops evaluated');

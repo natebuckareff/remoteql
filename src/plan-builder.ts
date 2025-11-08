@@ -7,8 +7,7 @@ import type {
   AnyStreamApi,
 } from './api.js';
 import { RouterApi } from './api.js';
-
-import { Frame, type SerializedFrame } from './frame.js';
+import { Frame, type SerializedOpMap } from './frame.js';
 import type {
   NormalizedTarget,
   Operation,
@@ -21,43 +20,31 @@ interface DataCacheEntry {
   codec: AnyCodec;
 }
 
-// TODO: better name; should probably just be called `Plan`
-export interface SerializedRootFrame extends SerializedFrame {
+export interface SerializedPlan {
+  ops: SerializedOpMap;
   outputs: number[];
   streams: number[];
 }
 
 export class PlanBuilder {
-  private nextId: number = 0;
+  private nextId: number = 1;
   private dataCache: Map<unknown, DataCacheEntry[]> = new Map();
   private stack: Frame[] = [];
-  private bindings: Map<number, AnyRouterApi> = new Map();
   private outputs: number[] = [];
   private streams: number[] = [];
 
-  constructor() {
+  constructor(private router: AnyRouterApi) {
     this.stack.push(new Frame());
   }
 
-  pushParam(router?: AnyRouterApi): OpType<'param'> {
+  pushParam(): OpType<'param'> {
     const id = this.getNextId();
     this.current().pushParam(id);
-    if (router !== undefined) {
-      this.bindings.set(id, router);
-    }
     return { type: 'param', id };
   }
 
-  getParamBinding(id: number): AnyRouterApi {
-    const binding = this.bindings.get(id);
-    if (binding === undefined) {
-      throw Error(`param binding not bound`);
-    }
-    return binding;
-  }
-
   getHandler(target: NormalizedTarget): AnyHandlerApi | AnyStreamApi {
-    let router = this.getParamBinding(target.id);
+    let router = this.router;
     let service: AnyServiceApi | undefined;
     const path: string[] = [...target.path];
 
@@ -198,7 +185,7 @@ export class PlanBuilder {
     return op;
   }
 
-  finish(): SerializedRootFrame {
+  serialize(): SerializedPlan {
     const frame = this.stack.pop();
 
     if (frame === undefined) {
@@ -209,8 +196,14 @@ export class PlanBuilder {
       throw Error('stack is not settled');
     }
 
+    const serializedFrame = frame.serialize();
+
+    if (serializedFrame.params.length !== 0) {
+      throw Error('invalid top-level frame params');
+    }
+
     return {
-      ...frame.serialize(),
+      ops: serializedFrame.ops,
       outputs: this.outputs,
       streams: this.streams,
     };

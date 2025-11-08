@@ -1,7 +1,7 @@
 import type { AnyRouterApi, InferRouterType } from './api.js';
 import { BatchScheduler } from './batch.js';
 import { createProxy } from './operation.js';
-import { PlanBuilder, type SerializedRootFrame } from './plan-builder.js';
+import { PlanBuilder, type SerializedPlan } from './plan-builder.js';
 import type { Rpc } from './rpc-type.js';
 import type { ServerResponse } from './server-instance.js';
 
@@ -11,7 +11,7 @@ export interface ClientConfig<Routes extends AnyRouterApi> {
 }
 
 export interface Transport {
-  send(plan: SerializedRootFrame): ServerResponse<unknown, unknown>;
+  send(plan: SerializedPlan): ServerResponse<unknown, unknown>;
 }
 
 export class Client<Routes extends AnyRouterApi> {
@@ -19,20 +19,19 @@ export class Client<Routes extends AnyRouterApi> {
   private proxy!: Rpc<InferRouterType<Routes>>; // initializd by reset()
 
   constructor(public readonly config: ClientConfig<Routes>) {
-    let builder = new PlanBuilder();
+    let builder: PlanBuilder;
 
     const reset = (): void => {
-      builder = new PlanBuilder();
-      const root = builder.pushParam(this.config.router);
+      builder = new PlanBuilder(this.config.router);
       this.proxy = createProxy<Rpc<InferRouterType<Routes>>>(
         this.batch,
         builder,
-        root,
+        { type: 'router', id: 0 },
       );
     };
 
     this.batch = new BatchScheduler(async () => {
-      const plan = builder.finish();
+      const plan = builder.serialize();
 
       reset();
 

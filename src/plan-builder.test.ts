@@ -14,9 +14,8 @@ test('basic plan', async () => {
     user: userApi,
   });
 
-  const builder = new PlanBuilder();
-  const root = builder.pushParam(api);
-  const rpc = createProxy<any>({} as any, builder, root);
+  const builder = new PlanBuilder(api);
+  const rpc = createProxy<any>({} as any, builder, { type: 'router', id: 0 });
   const me = rpc.user.getUserById(42);
   const users = rpc.user.getUsers().map((user: any) => ({
     id: user.id,
@@ -37,7 +36,7 @@ test('basic plan', async () => {
   builder.pushOutput(unwrapOperation(firstUserId)!);
   builder.pushOutput(unwrapOperation(usersWithFriends)!);
 
-  const frame = builder.finish();
+  const frame = builder.serialize();
   expect(frame).toMatchSnapshot();
 });
 
@@ -60,9 +59,11 @@ test('kitchen sink test', () => {
     user: userApi,
   });
 
-  const builder = new PlanBuilder();
-  const root = builder.pushParam(api);
-  const client = createProxy<any>({} as any, builder, root);
+  const builder = new PlanBuilder(api);
+  const client = createProxy<any>({} as any, builder, {
+    type: 'router',
+    id: 0,
+  });
 
   const now = 1762035193626;
 
@@ -92,5 +93,5 @@ test('kitchen sink test', () => {
   client.user.doSomething(data);
   client.user.doSomething(data);
 
-  expect(builder.finish()).toMatchSnapshot();
+  expect(builder.serialize()).toMatchSnapshot();
 });

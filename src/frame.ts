@@ -3,7 +3,11 @@ import type { Expr, Operation, Target } from './operation.js';
 
 export interface SerializedFrame {
   params: number[];
-  ops: Record<string, SerializedOp | SerializedFrame>;
+  ops: SerializedOpMap;
+}
+
+export interface SerializedOpMap {
+  [ref: string]: SerializedOp | SerializedFrame;
 }
 
 export type SerializedOp =
@@ -47,6 +51,9 @@ export class Frame {
 
   serializeOp(op: Operation): SerializedOp {
     switch (op.type) {
+      case 'router':
+        throw Error('cannot serialize router');
+
       case 'param':
         throw Error('cannot serialize param');
 

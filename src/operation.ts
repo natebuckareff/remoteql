@@ -5,6 +5,7 @@ import type { PlanBuilder } from './plan-builder.js';
 const operationSymbol = Symbol('operation');
 
 export type Operation =
+  | { type: 'router'; id: 0 }
   | { type: 'param'; id: number }
   | { type: 'get'; id: number; target: Target }
   | { type: 'data'; id: number; data: Json }

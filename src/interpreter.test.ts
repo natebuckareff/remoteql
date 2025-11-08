@@ -49,12 +49,11 @@ test('basic interpreter', async () => {
 
   const router = rq2.router(api).bind({ user: userService });
 
-  const builder = new PlanBuilder();
-  const root = builder.pushParam(api);
+  const builder = new PlanBuilder(api);
   const rpc = createProxy<Rpc<InferRouterType<typeof api>>>(
     {} as any,
     builder,
-    root,
+    { type: 'router', id: 0 },
   );
   const me = rpc.user.getUserById(3).map(user => ({
     id: user.id,
@@ -78,7 +77,7 @@ test('basic interpreter', async () => {
 
   const interpreter = await Interpreter.create({}, router);
 
-  const frame = builder.finish();
+  const frame = builder.serialize();
   const response = interpreter.evaluate(frame);
   const results: any[] = [];
   let returned: any;

@@ -1,6 +1,6 @@
 import type { AnyRouterApi, AnyServiceApi, InferServiceType } from './api.js';
 import { Interpreter } from './interpreter.js';
-import type { SerializedRootFrame } from './plan-builder.js';
+import type { SerializedPlan } from './plan-builder.js';
 import {
   type ContextParams,
   type RouterInstance,
@@ -86,9 +86,7 @@ export class ServerInstance<Context, Routes extends AnyRouterApi> {
     return cx;
   }
 
-  async *evaluate(
-    frame: SerializedRootFrame,
-  ): ServerResponse<unknown, unknown> {
+  async *evaluate(frame: SerializedPlan): ServerResponse<unknown, unknown> {
     const context = await this.createContext();
     const interpreter = await Interpreter.create(context, this.config.router);
 
