@@ -1,5 +1,6 @@
 import type { AnyRouterApi, AnyServiceApi, InferServiceType } from './api.js';
 import { Interpreter } from './interpreter.js';
+import type { OpId } from './operation.js';
 import type { SerializedPlan } from './plan-builder.js';
 import {
   type ContextParams,
@@ -15,9 +16,9 @@ export interface ServerConfig<Context, Routes extends AnyRouterApi> {
 }
 
 export type StreamMessage<Yield, Return> =
-  | { type: 'next'; id: number; value: Yield }
-  | { type: 'return'; id: number; value: Return }
-  | { type: 'error'; id: number; error: unknown };
+  | { type: 'next'; id: OpId; value: Yield }
+  | { type: 'return'; id: OpId; value: Return }
+  | { type: 'error'; id: OpId; error: unknown };
 
 export type ServerResponse<Yield, Return> = AsyncGenerator<
   StreamMessage<Yield, Return>,

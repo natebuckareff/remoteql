@@ -4,12 +4,15 @@ import type { PlanBuilder } from './plan-builder.js';
 
 const operationSymbol = Symbol('operation');
 
+export type OpId = number | string;
+
 export type Operation =
   | { type: 'router'; id: 0 }
   | { type: 'param'; id: number }
+  | { type: 'plan-param'; id: string }
   | { type: 'get'; id: number; target: Target }
   | { type: 'data'; id: number; data: Json }
-  | { type: 'apply'; id: number; target: Target; args: number[] }
+  | { type: 'apply'; id: number; target: Target; args: OpId[] }
   | { type: 'map'; id: number; target: Target; callback: number }
   | { type: 'expr'; id: number; expr: Expr };
 
@@ -18,10 +21,10 @@ export type Expr =
   | boolean
   | number
   | string
-  | [number]
+  | [OpId]
   | ['date', number]
   | ['bigint', string]
-  | ['undefined']
+  | [null]
   | [Expr[]]
   | { [property: string]: Expr };
 
@@ -30,10 +33,10 @@ export type OpType<T extends Operation['type']> = Extract<
   { type: T }
 >;
 
-export type Target = number | [number, ...string[]];
+export type Target = OpId | [OpId, ...string[]];
 
 export interface NormalizedTarget {
-  id: number;
+  id: OpId;
   path: string[];
 }
 
@@ -48,7 +51,7 @@ export function isOperationProxy(value: unknown): value is OperationProxy {
 }
 
 export function noramlizeTarget(target: Target): NormalizedTarget {
-  if (typeof target === 'number') {
+  if (typeof target === 'number' || typeof target === 'string') {
     return { id: target, path: [] };
   }
   const [id, ...path] = target;
@@ -162,7 +165,7 @@ export function createProxy<T extends object>(
         }
 
         const handler = builder.getHandler(target);
-        const argIds: number[] = [];
+        const argIds: OpId[] = [];
 
         for (let i = 0; i < argArray.length; i++) {
           const arg = argArray[i];
@@ -240,7 +243,7 @@ function encodeExpr(builder: PlanBuilder, value: unknown): Expr {
       return ['bigint', value.toString()];
 
     case 'undefined':
-      return ['undefined'];
+      return [null];
 
     default:
       throw Error(`cannot encode expression of type "${typeof value}"`);

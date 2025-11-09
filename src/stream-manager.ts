@@ -1,4 +1,5 @@
 import { Channel } from './channel.js';
+import type { OpId } from './operation.js';
 import type { StreamMessage } from './server-instance.js';
 
 export class StreamManager<Yield, Return> {
@@ -18,7 +19,7 @@ export class StreamManager<Yield, Return> {
     return this.batch;
   }
 
-  consume(id: number): AsyncGenerator<Yield, Return> {
+  consume(id: OpId): AsyncGenerator<Yield, Return> {
     const batch = this.getCurrentBatch();
     return batch.consume(id);
   }
@@ -27,14 +28,14 @@ export class StreamManager<Yield, Return> {
 export class StreamBatch<Yield, Return> {
   constructor(
     public readonly seq: number,
-    public readonly requests: Map<number, Channel<Yield, Return>>,
+    public readonly requests: Map<OpId, Channel<Yield, Return>>,
   ) {}
 
   get empty(): boolean {
     return this.requests.size === 0;
   }
 
-  private getChannel(id: number): Channel<Yield, Return> {
+  private getChannel(id: OpId): Channel<Yield, Return> {
     const channel = this.requests.get(id);
 
     if (channel === undefined) {
@@ -57,22 +58,22 @@ export class StreamBatch<Yield, Return> {
     }
   }
 
-  private resolveNext(id: number, value: Yield): Promise<void> {
+  private resolveNext(id: OpId, value: Yield): Promise<void> {
     const channel = this.getChannel(id);
     return channel.push(value);
   }
 
-  private resolveReturn(id: number, value: Return): Promise<void> {
+  private resolveReturn(id: OpId, value: Return): Promise<void> {
     const channel = this.getChannel(id);
     return channel.pushAndClose(value);
   }
 
-  private reject(id: number, error: unknown): Promise<void> {
+  private reject(id: OpId, error: unknown): Promise<void> {
     const channel = this.getChannel(id);
     return channel.abort(error);
   }
 
-  consume(id: number): AsyncGenerator<Yield, Return> {
+  consume(id: OpId): AsyncGenerator<Yield, Return> {
     if (this.requests.has(id)) {
       throw Error(
         `consumer already exists in batch: seq=${this.seq}, id=${id}`,

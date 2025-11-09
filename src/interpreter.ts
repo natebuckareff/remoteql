@@ -5,7 +5,12 @@ import type {
   SerializedOp,
   SerializedOpMap,
 } from './frame.js';
-import { type Expr, noramlizeTarget, type Target } from './operation.js';
+import {
+  type Expr,
+  noramlizeTarget,
+  type OpId,
+  type Target,
+} from './operation.js';
 import type { SerializedPlan } from './plan-builder.js';
 import type { Handler, Stream } from './server.js';
 import { RouterInstance, ServiceInstance } from './server.js';
@@ -40,11 +45,11 @@ function isAsyncGenerator(
 }
 
 export class Interpreter<Context> {
-  private lastId?: number;
+  private lastId?: OpId;
 
   private constructor(
     private context: Context,
-    private refs: Map<number, unknown>,
+    private refs: Map<OpId, unknown>,
   ) {}
 
   static async create<Context>(
@@ -224,10 +229,7 @@ export class Interpreter<Context> {
     return new Interpreter(this.context, refs);
   }
 
-  private setRef(id: number, value: unknown): void {
-    if (this.lastId !== undefined && id <= this.lastId) {
-      throw Error('non-monotonic id');
-    }
+  private setRef(id: OpId, value: unknown): void {
     this.lastId = id;
     this.refs.set(id, value);
   }
@@ -315,18 +317,21 @@ export class Interpreter<Context> {
 
   private decodeExpr(expr: Expr): unknown {
     if (Array.isArray(expr)) {
-      if (typeof expr[0] === 'number') {
-        const [index] = expr;
-        return this.refs.get(index);
-      } else if (expr[0] === 'date') {
-        return new Date(expr[1]);
-      } else if (expr[0] === 'bigint') {
-        return BigInt(expr[1]);
-      } else if (expr[0] === 'undefined') {
-        return undefined;
+      if (expr.length === 1) {
+        const [e] = expr;
+        if (e === null) {
+          return undefined;
+        } else if (Array.isArray(e)) {
+          return e.map(item => this.decodeExpr(item));
+        } else {
+          return this.refs.get(e);
+        }
       } else {
-        const [array] = expr;
-        return array.map(e => this.decodeExpr(e));
+        if (expr[0] === 'date') {
+          return new Date(expr[1]);
+        } else {
+          return BigInt(expr[1]);
+        }
       }
     } else if (typeof expr === 'object') {
       if (expr === null) {

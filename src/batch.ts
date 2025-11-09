@@ -1,4 +1,5 @@
 import assert from 'node:assert';
+import type { OpId } from './operation.js';
 import type { ServerResponse } from './server-instance.js';
 import { StreamManager } from './stream-manager.js';
 
@@ -13,7 +14,7 @@ export type RequestFn = () => Promise<ServerResponse<unknown, unknown>>;
 
 export class BatchScheduler {
   private sm: StreamManager<unknown, unknown> = new StreamManager();
-  private calls: Call<number, unknown>[] = [];
+  private calls: Call<OpId, unknown>[] = [];
   private promise?: Promise<void>;
 
   constructor(private request: RequestFn) {}
@@ -26,7 +27,7 @@ export class BatchScheduler {
   }
 
   private async _scheduleAsync(): Promise<void> {
-    let calls: (Call<number, unknown> | null)[] | undefined;
+    let calls: (Call<OpId, unknown> | null)[] | undefined;
 
     try {
       // wait until after the current tick, allowing all awaits to batch
@@ -92,14 +93,14 @@ export class BatchScheduler {
     }
   }
 
-  async resolve(id: number): Promise<unknown> {
+  async resolve(id: OpId): Promise<unknown> {
     return new Promise((resolve, reject) => {
       this._schedule();
       this.calls.push({ id, resolve, reject });
     });
   }
 
-  consume(id: number): AsyncGenerator<unknown, unknown> {
+  consume(id: OpId): AsyncGenerator<unknown, unknown> {
     this._schedule();
     return this.sm.consume(id);
   }

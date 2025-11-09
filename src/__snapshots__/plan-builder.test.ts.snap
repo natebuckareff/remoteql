@@ -154,6 +154,7 @@ exports[`basic plan 1`] = `
     21,
     19,
   ],
+  "params": {},
   "streams": [],
 }
 `;
@@ -342,6 +343,7 @@ exports[`kitchen sink test 1`] = `
     },
   },
   "outputs": [],
+  "params": {},
   "streams": [],
 }
 `;

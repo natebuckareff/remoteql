@@ -11,6 +11,7 @@ import { Frame, type SerializedOpMap } from './frame.js';
 import type {
   NormalizedTarget,
   Operation,
+  OpId,
   OpType,
   Target,
 } from './operation.js';
@@ -21,17 +22,18 @@ interface DataCacheEntry {
 }
 
 export interface SerializedPlan {
+  params: Record<string, unknown>;
   ops: SerializedOpMap;
-  outputs: number[];
-  streams: number[];
+  outputs: OpId[];
+  streams: OpId[];
 }
 
 export class PlanBuilder {
   private nextId: number = 1;
   private dataCache: Map<unknown, DataCacheEntry[]> = new Map();
   private stack: Frame[] = [];
-  private outputs: number[] = [];
-  private streams: number[] = [];
+  private outputs: OpId[] = [];
+  private streams: OpId[] = [];
 
   constructor(private router: AnyRouterApi) {
     this.stack.push(new Frame());
@@ -203,6 +205,7 @@ export class PlanBuilder {
     }
 
     return {
+      params: {}, // TODO: implement plan parameters
       ops: serializedFrame.ops,
       outputs: this.outputs,
       streams: this.streams,
@@ -211,7 +214,8 @@ export class PlanBuilder {
 }
 
 function validateOp(op: Operation): void {
-  const check = (id: number) => {
+  // TODO: is this still necessary?
+  const check = (id: OpId) => {
     if (id === -1) {
       throw Error('unresolved op');
     }

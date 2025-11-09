@@ -1,5 +1,5 @@
 import type { Json } from 'typekind';
-import type { Expr, Operation, Target } from './operation.js';
+import type { Expr, Operation, OpId, Target } from './operation.js';
 
 export interface SerializedFrame {
   params: number[];
@@ -13,7 +13,7 @@ export interface SerializedOpMap {
 export type SerializedOp =
   | ['get', Target]
   | ['data', Json]
-  | ['apply', Target, number[]]
+  | ['apply', Target, OpId[]]
   | ['map', Target, number]
   | ['expr', Expr];
 
@@ -53,6 +53,9 @@ export class Frame {
     switch (op.type) {
       case 'router':
         throw Error('cannot serialize router');
+
+      case 'plan-param':
+        throw Error('todo');
 
       case 'param':
         throw Error('cannot serialize param');
