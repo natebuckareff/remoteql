@@ -15,6 +15,7 @@ import type {
   OpType,
   Target,
 } from './operation.js';
+import { PlanTemplate } from './plan-template.js';
 
 interface DataCacheEntry {
   op: Operation;
@@ -22,7 +23,6 @@ interface DataCacheEntry {
 }
 
 export interface SerializedPlan {
-  params: Record<string, unknown>;
   ops: SerializedOpMap;
   outputs: OpId[];
   streams: OpId[];
@@ -30,6 +30,7 @@ export interface SerializedPlan {
 
 export class PlanBuilder {
   private nextId: number = 1;
+  private paramCodecs: Map<string, AnyCodec> = new Map();
   private dataCache: Map<unknown, DataCacheEntry[]> = new Map();
   private stack: Frame[] = [];
   private outputs: OpId[] = [];
@@ -37,6 +38,19 @@ export class PlanBuilder {
 
   constructor(private router: AnyRouterApi) {
     this.stack.push(new Frame());
+  }
+
+  // TODO: fix the plan params and callback frame params naming collision, it's
+  // very confusing
+  setParamCodec(id: string, codec: AnyCodec): void {
+    const existing = this.paramCodecs.get(id);
+    if (existing === undefined) {
+      this.paramCodecs.set(id, codec);
+    } else {
+      if (!existing.equals(codec)) {
+        throw Error(`param codec mismatch: "${id}"`);
+      }
+    }
   }
 
   pushParam(): OpType<'param'> {
@@ -205,11 +219,18 @@ export class PlanBuilder {
     }
 
     return {
-      params: {}, // TODO: implement plan parameters
       ops: serializedFrame.ops,
       outputs: this.outputs,
       streams: this.streams,
     };
+  }
+
+  createTemplate(): PlanTemplate {
+    // TODO: need to make sure the original plan builder is not used afterward,
+    // and same for .serialize()
+    const plan = this.serialize();
+    const paramCodecs = this.paramCodecs;
+    return new PlanTemplate(plan, paramCodecs);
   }
 }
 

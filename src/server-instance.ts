@@ -1,3 +1,4 @@
+import type { Json } from 'typekind';
 import type { AnyRouterApi, AnyServiceApi, InferServiceType } from './api.js';
 import { Interpreter } from './interpreter.js';
 import type { OpId } from './operation.js';
@@ -15,15 +16,12 @@ export interface ServerConfig<Context, Routes extends AnyRouterApi> {
   context?: ContextFn<Context>;
 }
 
-export type StreamMessage<Yield, Return> =
-  | { type: 'next'; id: OpId; value: Yield }
-  | { type: 'return'; id: OpId; value: Return }
+export type StreamMessage =
+  | { type: 'next'; id: OpId; value: Json }
+  | { type: 'return'; id: OpId; value: Json }
   | { type: 'error'; id: OpId; error: unknown };
 
-export type ServerResponse<Yield, Return> = AsyncGenerator<
-  StreamMessage<Yield, Return>,
-  unknown[]
->;
+export type ServerResponse = AsyncGenerator<StreamMessage, unknown[]>;
 
 export class ServerInstance<Context, Routes extends AnyRouterApi> {
   constructor(public readonly config: ServerConfig<Context, Routes>) {}
@@ -87,7 +85,7 @@ export class ServerInstance<Context, Routes extends AnyRouterApi> {
     return cx;
   }
 
-  async *evaluate(frame: SerializedPlan): ServerResponse<unknown, unknown> {
+  async *evaluate(frame: SerializedPlan): ServerResponse {
     const context = await this.createContext();
     const interpreter = await Interpreter.create(context, this.config.router);
 

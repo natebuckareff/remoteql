@@ -56,11 +56,12 @@ export class Interpreter<Context> {
     router: RouterInstance<Context, any>,
   ): Promise<Interpreter<Context>> {
     const interpreter = new Interpreter(context, new Map());
+    // TODO: Object.freeze for security..need to figure out ref issues as well
     interpreter.refs.set(0, router);
     return interpreter;
   }
 
-  async *evaluate(frame: SerializedPlan): ServerResponse<unknown, unknown> {
+  async *evaluate(frame: SerializedPlan): ServerResponse {
     await this.evaluateFrame(frame.ops);
 
     const generators = frame.streams.map(id => {
@@ -70,9 +71,7 @@ export class Interpreter<Context> {
         throw Error(`stream not found: ${id}`);
       }
 
-      async function* transformed(): AsyncGenerator<
-        StreamMessage<unknown, unknown>
-      > {
+      async function* transformed(): AsyncGenerator<StreamMessage> {
         // TODO: error handling and evaluate semantics
         if (!isAsyncGenerator(generator)) {
           throw Error(`stream is not an AsyncGenerator: ${id}`);
@@ -82,10 +81,13 @@ export class Interpreter<Context> {
           while (true) {
             const result = await generator.next();
             if (result.done) {
-              yield { type: 'return', id: id, value: result.value };
+              // TODO: all of these `as Json` casts through the project are a
+              // bad smell..should be immediately clear when we're dealing with
+              // wire format data via the types
+              yield { type: 'return', id: id, value: result.value as Json };
               break;
             }
-            yield { type: 'next', id: id, value: result.value };
+            yield { type: 'next', id: id, value: result.value as Json };
           }
         } catch (error) {
           yield { type: 'error', id: id, error };

@@ -1,4 +1,5 @@
 import { createRef, type Json } from 'typekind';
+import type { AnyHandlerApi, AnyStreamApi } from './api.js';
 import type { BatchScheduler } from './batch.js';
 import type { PlanBuilder } from './plan-builder.js';
 
@@ -12,9 +13,13 @@ export type Operation =
   | { type: 'plan-param'; id: string }
   | { type: 'get'; id: number; target: Target }
   | { type: 'data'; id: number; data: Json }
-  | { type: 'apply'; id: number; target: Target; args: OpId[] }
+  | ({ type: 'apply'; id: number; target: Target; args: OpId[] } & ApplyInfo)
   | { type: 'map'; id: number; target: Target; callback: number }
   | { type: 'expr'; id: number; expr: Expr };
+
+export interface ApplyInfo {
+  source: AnyHandlerApi | AnyStreamApi;
+}
 
 export type Expr =
   | null
@@ -71,8 +76,6 @@ export function createProxy<T extends object>(
   batch: BatchScheduler,
   builder: PlanBuilder,
   op: Operation,
-  // TODO: more general purpose mechanism for accumulated metadata?
-  info?: { isStream?: boolean },
 ): T {
   let cachedPromise: Promise<unknown> | undefined;
   let cachedGenerator: AsyncGenerator<unknown, unknown> | undefined;
@@ -80,7 +83,28 @@ export function createProxy<T extends object>(
   return createRef(op.id, {
     handler: {
       has(_target, p) {
-        return p === operationSymbol;
+        if (p === operationSymbol) {
+          return true;
+        }
+
+        if (op.type === 'apply') {
+          const { kind } = op.source;
+
+          if (kind === 'handler' && p === 'then') {
+            return true;
+          }
+
+          if (kind === 'stream') {
+            return (
+              p === Symbol.asyncIterator ||
+              p === 'next' ||
+              p === 'return' ||
+              p === 'throw'
+            );
+          }
+        }
+
+        return false;
       },
 
       get(_target, p) {
@@ -88,19 +112,23 @@ export function createProxy<T extends object>(
           return op;
         }
 
-        if (p === 'then') {
-          if (!cachedPromise) {
-            const { id } = builder.pushOutput(op);
-            cachedPromise = batch.resolve(id);
+        const source = op.type === 'apply' ? op.source : undefined;
+
+        if (source?.kind === 'handler') {
+          if (p === 'then') {
+            if (!cachedPromise) {
+              const { id } = builder.pushOutput(op);
+              cachedPromise = batch.resolve(id, source.output);
+            }
+            return cachedPromise.then.bind(cachedPromise);
           }
-          return cachedPromise.then.bind(cachedPromise);
         }
 
-        if (info?.isStream) {
+        if (source?.kind === 'stream') {
           if (p === Symbol.asyncIterator) {
             if (!cachedGenerator) {
               const { id } = builder.pushStream(op);
-              cachedGenerator = batch.consume(id);
+              cachedGenerator = batch.consume(id, source.value, source.output);
             }
             return () => cachedGenerator;
           }
@@ -108,7 +136,7 @@ export function createProxy<T extends object>(
           if (p === 'next' || p === 'return' || p === 'throw') {
             if (!cachedGenerator) {
               const { id } = builder.pushStream(op);
-              cachedGenerator = batch.consume(id);
+              cachedGenerator = batch.consume(id, source.value, source.output);
             }
             return cachedGenerator[p].bind(cachedGenerator);
           }
@@ -171,6 +199,10 @@ export function createProxy<T extends object>(
           const arg = argArray[i];
           if (isOperationProxy(arg)) {
             const argOp = builder.resolveOp(arg[operationSymbol]);
+            if (argOp.type === 'plan-param') {
+              const codec = builder.getParamCodec(handler, i);
+              builder.setParamCodec(argOp.id, codec);
+            }
             argIds.push(argOp.id);
           } else {
             const codec = builder.getParamCodec(handler, i);
@@ -187,11 +219,10 @@ export function createProxy<T extends object>(
           id: -1,
           target: [target.id, ...target.path],
           args: argIds,
+          source: handler,
         });
 
-        const info = { isStream: handler.kind === 'stream' };
-
-        return createProxy(batch, builder, applyOp, info);
+        return createProxy(batch, builder, applyOp);
       },
     },
     serialize: proxy => {
