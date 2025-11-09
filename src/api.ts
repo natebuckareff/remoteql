@@ -4,7 +4,7 @@ import { type AnyCodec, tk, type VoidCodec } from 'typekind';
 
 export type AnyRouterApi = RouterApi<RouterSpec>;
 export type AnyServiceApi = ServiceApi<HandlerApis>;
-export type AnyHandlerApi = HandlerApi<AnyCodec | void, AnyCodec | void>;
+export type AnyHandlerApi = HandlerApi<AnyCodec, AnyCodec>;
 export type AnyStreamApi = StreamApi<AnyCodec, AnyCodec, AnyCodec>;
 
 export class RouterApi<Routes extends RouterSpec> {
@@ -23,10 +23,7 @@ export interface HandlerApis {
   [name: string]: AnyHandlerApi | AnyStreamApi;
 }
 
-export class HandlerApi<
-  Input extends AnyCodec | void, // TODO: use tk.void and drop `| void`
-  Output extends AnyCodec | void,
-> {
+export class HandlerApi<Input extends AnyCodec, Output extends AnyCodec> {
   public readonly kind = 'handler';
 
   constructor(
@@ -35,7 +32,6 @@ export class HandlerApi<
   ) {}
 }
 
-// TODO: can just use tk.void() so drop defaults
 export class StreamApi<
   Input extends AnyCodec,
   Value extends AnyCodec,
@@ -67,12 +63,12 @@ export type InferHandlerType<T> = T extends HandlerApi<any, any>
     : never;
 
 export type InferNormalHandlerType<T extends HandlerApi<any, any>> =
-  void extends T['input'] // TODO: drop void in types and do the same as stream
+  void extends T['input']['Type']
     ? () => InferNormalHandlerOutput<T>
     : (input: T['input']['Type']) => InferNormalHandlerOutput<T>;
 
 export type InferNormalHandlerOutput<T extends HandlerApi<any, any>> = Promise<
-  void extends T['output'] ? void : T['output']['Type']
+  void extends T['output']['Type'] ? void : T['output']['Type']
 >;
 
 export type InferStreamType<T extends StreamApi<any, any, any>> =
@@ -124,20 +120,17 @@ export class ApiBuilder {
     }
   }
 
-  handler(): HandlerApi<void, void>;
+  handler(): HandlerApi<VoidCodec, VoidCodec>;
 
-  handler<Input extends AnyCodec>(input: Input): HandlerApi<Input, void>;
+  handler<Input extends AnyCodec>(input: Input): HandlerApi<Input, VoidCodec>;
 
   handler<Input extends AnyCodec, Output extends AnyCodec>(
     input: Input,
     output: Output,
   ): HandlerApi<Input, Output>;
 
-  handler(
-    input?: AnyCodec,
-    output?: AnyCodec,
-  ): HandlerApi<AnyCodec | void, AnyCodec | void> {
-    return new HandlerApi(input, output);
+  handler(input?: AnyCodec, output?: AnyCodec): HandlerApi<AnyCodec, AnyCodec> {
+    return new HandlerApi(input ?? tk.void(), output ?? tk.void());
   }
 }
 
