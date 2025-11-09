@@ -12,8 +12,8 @@ importers:
         specifier: ^8.0.1
         version: 8.0.1
       typekind:
-        specifier: ^0.0.18
-        version: 0.0.18
+        specifier: ^0.0.19
+        version: 0.0.19
     devDependencies:
       '@biomejs/biome':
         specifier: 2.3.0
@@ -597,8 +597,8 @@ packages:
   trie-memoize@1.2.0:
     resolution: {integrity: sha512-hEDLVEP1FCgaRtt0oZDJdz2lK9uK7WlB7ASswt9U9cqruSNueVigtRGxI97hevKlViqhAcRgNgzuY/m8FCCMcg==}
 
-  typekind@0.0.18:
-    resolution: {integrity: sha512-4zLgTJYSsUu6itGh+5hfNZHFRvFLSKcddVsOWIMQ/WJqOKQKOcCRCFNUQqWhlzBKQ4X/pGO6qhGwUwibfy8grw==}
+  typekind@0.0.19:
+    resolution: {integrity: sha512-MheoItQJ1XzGJihIXo0HkI0x81PIurG0k9Z0IVAI8WBx7m0H63U/I6OIT6d/79S9cYM9Wxj8MrlJk9RQh90S3w==}
 
   typescript@5.9.3:
     resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
@@ -1137,7 +1137,7 @@ snapshots:
 
   trie-memoize@1.2.0: {}
 
-  typekind@0.0.18:
+  typekind@0.0.19:
     dependencies:
       trie-memoize: 1.2.0
 

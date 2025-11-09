@@ -24,7 +24,7 @@ export interface HandlerApis {
 }
 
 export class HandlerApi<
-  Input extends AnyCodec | void,
+  Input extends AnyCodec | void, // TODO: use tk.void and drop `| void`
   Output extends AnyCodec | void,
 > {
   public readonly kind = 'handler';
@@ -67,7 +67,7 @@ export type InferHandlerType<T> = T extends HandlerApi<any, any>
     : never;
 
 export type InferNormalHandlerType<T extends HandlerApi<any, any>> =
-  void extends T['input']
+  void extends T['input'] // TODO: drop void in types and do the same as stream
     ? () => InferNormalHandlerOutput<T>
     : (input: T['input']['Type']) => InferNormalHandlerOutput<T>;
 

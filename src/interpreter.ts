@@ -1,16 +1,14 @@
 import { parallelMerge } from 'streaming-iterables';
-import type { AnyRouterApi } from './api.js';
+import { type AnyCodec, Context, type Json, tk } from 'typekind';
+import type { AnyRouterApi, AnyServiceApi } from './api.js';
 import type {
   SerializedFrame,
   SerializedOp,
   SerializedOpMap,
 } from './frame.js';
-import {
-  type Expr,
-  noramlizeTarget,
-  type OpId,
-  type Target,
-} from './operation.js';
+import type { Expr, OpId, Target } from './operation.js';
+import { noramlizeTarget } from './operation.js';
+
 import type { SerializedPlan } from './plan-builder.js';
 import type { Handler, Stream } from './server.js';
 import { RouterInstance, ServiceInstance } from './server.js';
@@ -29,6 +27,7 @@ interface HandlerResolveResult {
   routers: RouterInstance<any, any>[];
   service: ServiceInstance<any, any>;
   handler: Handler<any, any, any> | Stream<any, any, any, any>;
+  inputCodec: AnyCodec;
 }
 
 // TODO: consider type tagging this.ref values
@@ -140,8 +139,24 @@ export class Interpreter<Context> {
             throw Error('invalid number of handler arguments');
           }
           const argId = argIds[0];
-          const input = argId === undefined ? undefined : this.refs.get(argId);
+          let input = argId === undefined ? undefined : this.refs.get(argId);
+
+          // TODO: cache typekind context
+
+          // TODO: the casting to Json feels like it's at the root of the type
+          // safety issues in this file
+          const ctx = Context.create(id => this.refs.get(id) as Json);
+
+          // TODO: codec .equals probably not great for performance
+          if (result.inputCodec.equals(tk.void())) {
+            // void codec expects null for void values
+            input = null;
+          }
+
+          input = result.inputCodec.deserialize(input as Json, ctx);
+
           const { handler } = result;
+
           let output = handler({ cx: this.context, input });
           if (isThenable(output)) {
             output = await output;
@@ -262,7 +277,7 @@ export class Interpreter<Context> {
   ): HandlerResolveResult {
     const originalPath = [...path];
     const routers: RouterInstance<any, any>[] = [router];
-    let service: ServiceInstance<any, any> | undefined;
+    let service: ServiceInstance<any, AnyServiceApi> | undefined;
 
     while (true) {
       const p = path.shift();
@@ -302,9 +317,14 @@ export class Interpreter<Context> {
 
     const handlerName = path[0]!;
     const handler = service.impl?.[handlerName];
+    const inputCodec = service.api.handlers[handlerName]?.input;
 
     if (handler === undefined) {
       throw Error(`handler not implemented: "${originalPath.join('.')}"`);
+    }
+
+    if (inputCodec === undefined) {
+      throw Error(`input codec not found: "${originalPath.join('.')}"`);
     }
 
     return {
@@ -312,6 +332,7 @@ export class Interpreter<Context> {
       routers,
       service,
       handler,
+      inputCodec,
     };
   }
 

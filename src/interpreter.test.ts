@@ -93,3 +93,50 @@ test('basic interpreter', async () => {
   expect(results).toEqual([]);
   expect(returned).toMatchSnapshot();
 });
+
+test('data ops with embedded refs', async () => {
+  const rq1 = initApi();
+  const api = rq1.router({
+    test: rq1.api({
+      getValue: rq1.handler(tk.void(), tk.number()),
+      useData: rq1.handler(tk.object({ value: tk.number() }), tk.number()),
+    }),
+  });
+
+  let receivedInput: any;
+  const rq2 = initServer();
+  const router = rq2.router(api).bind({
+    test: rq2.service(api.routes.test).bind({
+      async getValue() {
+        return 42;
+      },
+      async useData({ input }) {
+        receivedInput = input;
+        return input.value;
+      },
+    }),
+  });
+
+  const builder = new PlanBuilder(api);
+  const rpc = createProxy<Rpc<InferRouterType<typeof api>>>(
+    {} as any,
+    builder,
+    { type: 'router', id: 0 },
+  );
+
+  const value = rpc.test.getValue();
+  const result = rpc.test.useData({ value });
+
+  builder.pushOutput(unwrapOperation(result)!);
+
+  const interpreter = await Interpreter.create({}, router);
+  const frame = builder.serialize();
+  const response = interpreter.evaluate(frame);
+
+  while (true) {
+    const r = await response.next();
+    if (r.done) break;
+  }
+
+  expect(receivedInput).toEqual({ value: 42 });
+});
