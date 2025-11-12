@@ -16,6 +16,7 @@ export type InferRouter<Context, T extends AnyRouterApi> = {
     : InferRouter<Context, Extract<T['routes'][K], AnyRouterApi>>;
 };
 
+// TODO: poorly named...this is really InferServiceType
 export type InferApi<Context, T extends AnyServiceApi> = {
   [K in keyof T['handlers']]?: T['handlers'][K] extends HandlerApi<
     infer Input,
