@@ -19,6 +19,7 @@ export type IsPlainPrimitive<T> = T extends
   ? T
   : never;
 
+// TODO: router object should not be mappable
 export type Mappable<E> = {
   map<U>(callback: (value: Rpc<E>) => U): Rpc<U>;
 };

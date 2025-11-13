@@ -1,6 +1,13 @@
-import { type AnyCodec, tk, type VoidCodec } from 'typekind';
+import { type AnyCodec, TupleCodec, tk, type VoidCodec } from 'typekind';
 
-// TODO: handler/stream naming could be improved
+// TODO: handler/stream naming could be improved - use method as general name
+// for handler or stream ie service have methods
+
+export type AnyApi =
+  | AnyRouterApi
+  | AnyServiceApi
+  | AnyHandlerApi
+  | AnyStreamApi;
 
 export type AnyRouterApi = RouterApi<RouterSpec>;
 export type AnyServiceApi = ServiceApi<HandlerApis>;
@@ -30,6 +37,10 @@ export class HandlerApi<Input extends AnyCodec, Output extends AnyCodec> {
     public readonly input: Input,
     public readonly output: Output,
   ) {}
+
+  getParamCodec(index: number): AnyCodec {
+    return getParamCodec(this, index);
+  }
 }
 
 export class StreamApi<
@@ -44,7 +55,42 @@ export class StreamApi<
     public readonly value: Value,
     public readonly output: Output,
   ) {}
+
+  getParamCodec(index: number): AnyCodec {
+    return getParamCodec(this, index);
+  }
 }
+
+function getParamCodec(
+  api: AnyHandlerApi | AnyStreamApi,
+  index: number,
+): AnyCodec {
+  const inputCodec = api.input;
+
+  if (inputCodec instanceof TupleCodec) {
+    const argCodec = (inputCodec as TupleCodec<AnyCodec[]>).codecs[index];
+    if (argCodec === undefined) {
+      throw Error('rpc method argument index out of bounds');
+    }
+    return argCodec;
+  }
+
+  if (index !== 0) {
+    throw Error('rpc method argument index out of bounds');
+  }
+
+  return inputCodec;
+}
+
+export type InferApiType<T extends AnyApi> = T extends AnyRouterApi
+  ? InferRouterType<T>
+  : T extends AnyServiceApi
+    ? InferServiceType<T>
+    : T extends AnyHandlerApi
+      ? InferHandlerType<T>
+      : T extends AnyStreamApi
+        ? InferStreamType<T>
+        : never;
 
 export type InferRouterType<T extends AnyRouterApi> = {
   [K in keyof T['routes']]: T['routes'][K] extends AnyServiceApi
