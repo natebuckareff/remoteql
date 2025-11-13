@@ -1,32 +1,42 @@
-import { SplitAsyncIterator } from './split-async-iterator.js';
+import { Deferred } from './deferred.js';
 
 export class SplitAsyncIterable<T, TReturn, TNext>
   implements AsyncIterable<T, TReturn, TNext>
 {
-  private _iter: SplitAsyncIterator<T, TReturn, TNext> | null;
+  private deferred: Deferred<TReturn> = new Deferred();
+  private iterator?: AsyncIterator<T, TReturn, TNext>;
 
-  constructor(source: AsyncIterator<T, TReturn, TNext>) {
-    this._iter = new SplitAsyncIterator(source);
-  }
+  constructor(source: AsyncGenerator<T, TReturn, TNext>) {
+    const { deferred } = this;
 
-  split(): [AsyncIterable<T, TReturn, TNext>, Promise<TReturn>] {
-    if (this._iter === null) {
-      throw Error('iterator already taken');
+    async function* wrapper(): AsyncGenerator<T, TReturn, TNext> {
+      try {
+        const result = yield* source;
+        deferred.resolve(result);
+        return result;
+      } catch (error) {
+        deferred.reject(error);
+        throw error;
+      }
     }
-    const promise = this._iter.promise;
-    return [this, promise];
+
+    this.iterator = wrapper()[Symbol.asyncIterator]();
   }
 
-  iter(): SplitAsyncIterator<T, TReturn, TNext> {
+  split(): [SplitAsyncIterable<T, TReturn, TNext>, Promise<TReturn>] {
+    return [this, this.deferred.promise];
+  }
+
+  iter(): AsyncIterator<T, TReturn, TNext> {
     return this[Symbol.asyncIterator]();
   }
 
-  [Symbol.asyncIterator](): SplitAsyncIterator<T, TReturn, TNext> {
-    const { _iter } = this;
-    if (_iter === null) {
+  [Symbol.asyncIterator](): AsyncIterator<T, TReturn, TNext> {
+    const { iterator } = this;
+    if (iterator === undefined) {
       throw Error('iterator already taken');
     }
-    this._iter = null;
-    return _iter;
+    this.iterator = undefined;
+    return iterator;
   }
 }
